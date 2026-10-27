@@ -17,81 +17,41 @@ If you want to write your own, start with [docs/conventions.md](docs/conventions
 
 ## Installation
 
-It takes about five minutes, even if you're starting from scratch.
-
-### 1. What you need
-
-- **Claude Code.** If you don't have it yet, follow the [official guide](https://docs.claude.com/en/docs/claude-code).
-- **Git**, to download the repository:
-  - on Ubuntu: `sudo apt update && sudo apt install -y git`
-  - on Windows: `winget install --id Git.Git -e` (open a new terminal afterwards so it shows up)
-
-That's it. The repository is public, so you don't need a GitHub account.
-
-### 2. Download the repository
-
-Put it somewhere you'll keep it. The setup links your skills to this folder, so if you move or delete it later, the skills stop working.
-
-On Ubuntu:
+Ubuntu:
 
 ```bash
-mkdir -p ~/src && cd ~/src
+cd ~
 git clone https://github.com/asashoryu/oleander-ai-toolkit.git
 cd oleander-ai-toolkit
-```
-
-On Windows (PowerShell):
-
-```powershell
-New-Item -ItemType Directory -Force "$HOME\src" | Out-Null; Set-Location "$HOME\src"
-git clone https://github.com/asashoryu/oleander-ai-toolkit.git
-Set-Location oleander-ai-toolkit
-```
-
-### 3. Run the setup
-
-The setup script puts every skill and workflow where Claude Code looks for them (`~/.claude/skills`). It won't touch anything you already had there.
-
-On Ubuntu:
-
-```bash
-chmod +x setup.sh   # only needed the first time
 ./setup.sh
 ```
 
-On Windows (PowerShell):
+Windows (PowerShell):
 
 ```powershell
-.\setup.ps1
-```
-
-If Windows complains that "running scripts is disabled on this system", run it like this instead:
-
-```powershell
+cd ~
+git clone https://github.com/asashoryu/oleander-ai-toolkit.git
+cd oleander-ai-toolkit
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-By default the script creates **links**, so any change in the repository shows up in Claude right away. If you'd rather have a frozen copy, use `./setup.sh --copy` (or `.\setup.ps1 -Copy` on Windows).
+Then open a new Claude Code session and type `/mr-wolf`.
 
-Only want one skill? Copy its folder (for example `skills/mr-wolf`) into `~/.claude/skills/` and you're done.
-
-### 4. Make sure it works
-
-Start a new Claude Code session and type `/mr-wolf`. If Mr. Wolf answers, you're all set.
-
-## Staying up to date
+## Update
 
 ```bash
-cd ~/src/oleander-ai-toolkit   # Windows: Set-Location "$HOME\src\oleander-ai-toolkit"
+cd ~/oleander-ai-toolkit
 git pull
-./setup.sh                     # Windows: .\setup.ps1
+./setup.sh                 # Windows: powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-If you installed with links, `git pull` already updates the skills you have. Run the setup again only to pick up new ones. If you installed with `--copy`, run the setup every time.
+## Uninstall
 
-## Removing it
-
-Run `./setup.sh --uninstall` (on Windows: `.\setup.ps1 -Uninstall`). This removes only what the toolkit installed. After that you can delete the folder.
+```bash
+cd ~/oleander-ai-toolkit
+./setup.sh --uninstall     # Windows: powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Uninstall
+cd ~ && rm -rf ~/oleander-ai-toolkit
+```
 
 ## Adding your own skill or workflow
 

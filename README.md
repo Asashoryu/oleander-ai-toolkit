@@ -13,7 +13,16 @@ If you want to write your own, start with [docs/conventions.md](docs/conventions
 
 | Name | Type | What it does |
 |---|---|---|
-| `mr-wolf` | skill | A calm, no-nonsense problem solver. It lays out your options with their trade-offs, waits for you to pick one, then gets it done in one go. |
+| `contract-flow` | workflow | Keeps your code and its contracts in 1:1 parity: change contracts, check parity, open tickets, resolve them, repeat until the project is stable. Run it with `/contract-flow`. |
+| `contract-init` | skill | Sets up the contract-flow workspace (contracts, tickets, handoffs) and explains how the flow works. |
+| `recontract` | skill | Builds the whole contract tree from existing docs and code, or reorganises it. |
+| `contract-refine` | skill | Changes a few contracts for a specific task, after grilling you on the change. |
+| `parity-check` | skill | Compares contracts with their child contracts and code, and opens a ticket for each discrepancy. |
+| `mr-wolf` | skill | A calm, no-nonsense problem solver. Picks up a ticket (or any implementation document), lays out options with their trade-offs, then gets it done in one go. |
+
+`contract-flow` also needs two of Matt Pocock's skills, `grilling` and `handoff`, installed from [mattpocock/skills](https://github.com/mattpocock/skills).
+
+The vocabulary used across these skills is defined in [CONTEXT.md](CONTEXT.md).
 
 ## Installation
 
@@ -35,7 +44,7 @@ cd oleander-ai-toolkit
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-Then open a new Claude Code session and type `/mr-wolf`.
+Then open a new Claude Code session and type `/contract-flow`.
 
 ## Update
 
@@ -61,6 +70,5 @@ cd ~ && rm -rf ~/oleander-ai-toolkit   # Windows: cd ~; Remove-Item -Recurse -Fo
 
 ## What's next
 
-- Rework `mr-wolf` so it attaches to a spec file, as described in the conventions.
 - Publish the toolkit on the Claude Code plugin marketplace.
 - Add support for other assistants, starting with Codex.

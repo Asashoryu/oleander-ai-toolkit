@@ -3,23 +3,33 @@
 # Default: creates symlinks, so edits in this repo are live.
 #   --copy        copy folders instead of linking
 #   --uninstall   remove only entries that this repo installed
+#   --update      pull the latest changes from the repository, then install
 #   --target DIR  install directory (default: ~/.claude/skills)
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 target="$HOME/.claude/skills"
 mode=link
+update=0
+args=()
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --copy) mode=copy ;;
-        --uninstall) mode=uninstall ;;
-        --target) target="$2"; shift ;;
-        -h|--help) sed -n '2,6p' "$0"; exit 0 ;;
+        --update) update=1; shift; continue ;;
+        --copy) mode=copy; args+=("$1") ;;
+        --uninstall) mode=uninstall; args+=("$1") ;;
+        --target) target="$2"; args+=("$1" "$2"); shift ;;
+        -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
     esac
     shift
 done
+
+if [ "$update" = 1 ]; then
+    [ "$mode" = uninstall ] && { echo "--update cannot be combined with --uninstall" >&2; exit 1; }
+    git -C "$repo" pull --ff-only
+    exec "$repo/setup.sh" "${args[@]}"   # rerun the freshly pulled script
+fi
 
 sources=()
 for dir in "$repo"/skills/*/ "$repo"/workflows/*/; do

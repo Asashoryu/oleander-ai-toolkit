@@ -5,15 +5,25 @@
   Default: creates directory junctions (no admin needed), so edits in this repo are live.
   -Copy      copy folders instead of linking
   -Uninstall remove only entries that this repo installed
+  -Update    pull the latest changes from the repository, then install
   -Target    install directory (default: ~/.claude/skills)
 #>
 param(
     [switch]$Copy,
     [switch]$Uninstall,
+    [switch]$Update,
     [string]$Target = (Join-Path $HOME '.claude\skills')
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ($Update) {
+    if ($Uninstall) { throw '-Update cannot be combined with -Uninstall' }
+    git -C $PSScriptRoot pull --ff-only
+    if ($LASTEXITCODE -ne 0) { throw 'git pull failed' }
+    & $PSCommandPath -Copy:$Copy -Target $Target   # rerun the freshly pulled script
+    return
+}
 $sources = @('skills', 'workflows') |
     ForEach-Object { Join-Path $PSScriptRoot $_ } |
     Where-Object { Test-Path $_ } |

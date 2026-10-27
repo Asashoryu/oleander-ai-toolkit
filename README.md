@@ -49,9 +49,7 @@ Then open a new Claude Code session and type `/contract-flow`.
 ## Update
 
 ```bash
-cd ~/oleander-ai-toolkit
-git pull
-./setup.sh                 # Windows: powershell -ExecutionPolicy Bypass -File .\setup.ps1
+~/oleander-ai-toolkit/setup.sh --update   # Windows: powershell -ExecutionPolicy Bypass -File ~\oleander-ai-toolkit\setup.ps1 -Update
 ```
 
 ## Uninstall

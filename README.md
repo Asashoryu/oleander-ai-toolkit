@@ -26,13 +26,13 @@ The vocabulary used across these skills is defined in [CONTEXT.md](CONTEXT.md).
 
 ## Installation
 
+### 1. Download
+
 Ubuntu:
 
 ```bash
 cd ~
 git clone https://github.com/asashoryu/oleander-ai-toolkit.git
-cd oleander-ai-toolkit
-./setup.sh
 ```
 
 Windows (PowerShell):
@@ -40,25 +40,65 @@ Windows (PowerShell):
 ```powershell
 cd ~
 git clone https://github.com/asashoryu/oleander-ai-toolkit.git
-cd oleander-ai-toolkit
-powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-Then open a new Claude Code session and type `/contract-flow`.
+### 2. Install
+
+Pick one of the two levels.
+
+**Global**: available in every project (installs into `~/.claude/skills`).
+
+```bash
+~/oleander-ai-toolkit/setup.sh
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ~\oleander-ai-toolkit\setup.ps1
+```
+
+**Project**: available only in one project (installs into `<project>/.claude/skills`).
+
+```bash
+~/oleander-ai-toolkit/setup.sh --target ~/my-project/.claude/skills
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ~\oleander-ai-toolkit\setup.ps1 -Target C:\path\to\my-project\.claude\skills
+```
+
+If the project is shared through git, add `--copy` (`-Copy` on Windows): links point to your local toolkit folder and won't work on other machines.
+
+Then open a new Claude Code session (in the project, for a project install) and type `/contract-flow`.
 
 ## Update
 
+Global:
+
 ```bash
-~/oleander-ai-toolkit/setup.sh --update   # Windows: powershell -ExecutionPolicy Bypass -File ~\oleander-ai-toolkit\setup.ps1 -Update
+~/oleander-ai-toolkit/setup.sh --update
 ```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ~\oleander-ai-toolkit\setup.ps1 -Update
+```
+
+Project: add the same `--target` / `-Target` used to install, e.g. `setup.sh --update --target ~/my-project/.claude/skills`.
 
 ## Uninstall
 
+Global:
+
 ```bash
-cd ~/oleander-ai-toolkit
-./setup.sh --uninstall     # Windows: powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Uninstall
-cd ~ && rm -rf ~/oleander-ai-toolkit   # Windows: cd ~; Remove-Item -Recurse -Force oleander-ai-toolkit
+~/oleander-ai-toolkit/setup.sh --uninstall
 ```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ~\oleander-ai-toolkit\setup.ps1 -Uninstall
+```
+
+Project: add the same `--target` / `-Target` used to install.
+
+To remove the toolkit completely, uninstall every level first, then delete the folder: `rm -rf ~/oleander-ai-toolkit` (Windows: `Remove-Item -Recurse -Force ~\oleander-ai-toolkit`).
 
 ## Adding your own skill or workflow
 

@@ -50,7 +50,7 @@ git pull
 ```bash
 cd ~/oleander-ai-toolkit
 ./setup.sh --uninstall     # Windows: powershell -ExecutionPolicy Bypass -File .\setup.ps1 -Uninstall
-cd ~ && rm -rf ~/oleander-ai-toolkit
+cd ~ && rm -rf ~/oleander-ai-toolkit   # Windows: cd ~; Remove-Item -Recurse -Force oleander-ai-toolkit
 ```
 
 ## Adding your own skill or workflow

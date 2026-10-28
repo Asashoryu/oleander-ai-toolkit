@@ -1,112 +1,32 @@
 # oleander-ai-toolkit
 
-This is my personal collection of skills and workflows for AI coding assistants. Right now everything is built for Claude Code, but I write the content so it can be adapted to other tools (like Codex) later on.
+Skills and workflows for Claude Code. Terms are defined in [CONTEXT.md](CONTEXT.md), authoring rules in [docs/conventions.md](docs/conventions.md).
 
-There are two kinds of things in here:
-
-- **Skills** (`skills/`) each do one job well. A skill tells the AI what it is supposed to do and which tools it can use.
-- **Workflows** (`workflows/`) are step-by-step methods. They chain several skills together to get something bigger done.
-
-If you want to write your own, start with [docs/conventions.md](docs/conventions.md). It's short.
-
-## What's inside
-
-| Name | Type | What it does |
+| Name | Type | Purpose |
 |---|---|---|
-| `contract-flow` | workflow | Keeps your code and its contracts in 1:1 parity: change contracts, check parity, open tickets, resolve them, repeat until the project is stable. Run it with `/contract-flow`. |
-| `contract-init` | skill | Sets up the contract-flow workspace (contracts, tickets, handoffs) and explains how the flow works. |
-| `recontract` | skill | Builds the whole contract tree from existing docs and code, or reorganises it. |
-| `contract-refine` | skill | Changes a few contracts for a specific task, after grilling you on the change. |
-| `parity-check` | skill | Compares contracts with their child contracts and code, and opens a ticket for each discrepancy. |
-| `mr-wolf` | skill | A calm, no-nonsense problem solver. Picks up a ticket (or any implementation document), lays out options with their trade-offs, then gets it done in one go. |
+| `contract-flow` | workflow | Keeps code and contracts in 1:1 parity. Run with `/contract-flow`. |
+| `contract-init` | skill | Creates the contract-flow workspace. |
+| `recontract` | skill | Builds or reorganises the whole contract tree. |
+| `contract-refine` | skill | Changes a few contracts for a task. |
+| `parity-check` | skill | Finds contract/code discrepancies and opens tickets. |
+| `mr-wolf` | skill | Resolves a ticket or implementation document. |
 
-`contract-flow` also needs two of Matt Pocock's skills, `grilling` and `handoff`, installed from [mattpocock/skills](https://github.com/mattpocock/skills).
+**Requires** Matt Pocock's `grilling` and `handoff` skills ([mattpocock/skills](https://github.com/mattpocock/skills)).
 
-The vocabulary used across these skills is defined in [CONTEXT.md](CONTEXT.md).
-
-## Installation
-
-### 1. Download
-
-Ubuntu:
+## Install
 
 ```bash
-cd ~
-git clone https://github.com/asashoryu/oleander-ai-toolkit.git
+git clone https://github.com/asashoryu/oleander-ai-toolkit.git ~/oleander-ai-toolkit
+~/oleander-ai-toolkit/setup.sh                                    # global: ~/.claude/skills
+~/oleander-ai-toolkit/setup.sh --target <project>/.claude/skills  # single project
 ```
 
-Windows (PowerShell):
+On Windows run `powershell -ExecutionPolicy Bypass -File ~\oleander-ai-toolkit\setup.ps1`, with `-Target`, `-Copy`, `-Update`, `-Uninstall`.
 
-```powershell
-cd ~
-git clone https://github.com/asashoryu/oleander-ai-toolkit.git
-```
+| Option | Effect |
+|---|---|
+| `--copy` | Copy instead of link. Use it for projects shared through git: links point to your local clone. |
+| `--update` | `git pull`, then reinstall. |
+| `--uninstall` | Remove only what the script installed. |
 
-### 2. Install
-
-Pick one of the two levels.
-
-**Global**: available in every project (installs into `~/.claude/skills`).
-
-```bash
-~/oleander-ai-toolkit/setup.sh
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ~\oleander-ai-toolkit\setup.ps1
-```
-
-**Project**: available only in one project (installs into `<project>/.claude/skills`).
-
-```bash
-~/oleander-ai-toolkit/setup.sh --target ~/my-project/.claude/skills
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ~\oleander-ai-toolkit\setup.ps1 -Target C:\path\to\my-project\.claude\skills
-```
-
-If the project is shared through git, add `--copy` (`-Copy` on Windows): links point to your local toolkit folder and won't work on other machines.
-
-Then open a new Claude Code session (in the project, for a project install) and type `/contract-flow`.
-
-## Update
-
-Global:
-
-```bash
-~/oleander-ai-toolkit/setup.sh --update
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ~\oleander-ai-toolkit\setup.ps1 -Update
-```
-
-Project: add the same `--target` / `-Target` used to install, e.g. `setup.sh --update --target ~/my-project/.claude/skills`.
-
-## Uninstall
-
-Global:
-
-```bash
-~/oleander-ai-toolkit/setup.sh --uninstall
-```
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ~\oleander-ai-toolkit\setup.ps1 -Uninstall
-```
-
-Project: add the same `--target` / `-Target` used to install.
-
-To remove the toolkit completely, uninstall every level first, then delete the folder: `rm -rf ~/oleander-ai-toolkit` (Windows: `Remove-Item -Recurse -Force ~\oleander-ai-toolkit`).
-
-## Adding your own skill or workflow
-
-1. Create a folder `skills/<name>/` or `workflows/<name>/` with a `SKILL.md` inside. For workflows, there's a ready-made template in [docs/authoring-workflows.md](docs/authoring-workflows.md).
-2. Give it a unique name and use that same name for the folder and for the `name:` field at the top of the file.
-3. Run the setup again.
-
-## What's next
-
-- Publish the toolkit on the Claude Code plugin marketplace.
-- Add support for other assistants, starting with Codex.
+Update and uninstall need the same `--target` used to install. With links, don't move or delete the clone.

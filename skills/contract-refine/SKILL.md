@@ -5,7 +5,7 @@ description: Change the content of a few contracts for a specific task (a new re
 
 # Contract refine
 
-Changes what a few contracts say. For reorganising the tree (levels, moving or splitting contracts), use `recontract`.
+Changes what a few contracts say. Reorganising the tree (moving, splitting or re-nesting contracts) is out of scope.
 
 ## Before starting
 
@@ -14,17 +14,19 @@ Read the workspace `README.md` (find it through the `Contract-flow workspace:` l
 ## 1. Understand the input
 
 The input is one of:
-- a **requirement** from the user (new, changed or removed behaviour)
+- a **requirement** or statement from the user (new, changed or removed behaviour)
 - one or more **tickets** with direction `contract`, `escalate` or status `rerouted`
+- an **uncontracted zone** the user agreed to contract
 
 Find the contracts involved. For an `escalate` ticket, start from the parent of the ticket's contract and keep climbing while the problem is really decided higher up.
 
 ## 2. Grill the change
 
 Invoke the `grilling` skill. Settle, for each contract involved:
-- which clauses are added, reworded or removed
+- which clauses are added, reworded or removed, and how each is verified
 - whether children must change to keep realising their parent (list them)
-- whether the change is really structural, in which case stop and suggest `recontract`
+- whether a clause verified by `test` needs a new or changed verification contract
+- whether the change is really structural, in which case stop and say so
 
 Work from the highest affected contract downwards. Do not write until the user confirms.
 
@@ -36,4 +38,4 @@ Work from the highest affected contract downwards. Do not write until the user c
 
 ## 4. Hand over
 
-List the contracts changed. The next step is a scoped parity check on them.
+List the contracts changed.

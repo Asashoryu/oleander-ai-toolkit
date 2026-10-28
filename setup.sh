@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Installs oleander skills and workflows into the Claude Code skills directory.
 # Default: creates symlinks, so edits in this repo are live.
+# Also lists what it installed in the matching CLAUDE.md (~/.claude/CLAUDE.md or <project>/CLAUDE.md).
 #   --copy        copy folders instead of linking
 #   --uninstall   remove only entries that this repo installed
 #   --update      pull the latest changes from the repository, then install
@@ -19,7 +20,7 @@ while [ $# -gt 0 ]; do
         --copy) mode=copy; args+=("$1") ;;
         --uninstall) mode=uninstall; args+=("$1") ;;
         --target) target="$2"; args+=("$1" "$2"); shift ;;
-        -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
         *) echo "unknown option: $1" >&2; exit 1 ;;
     esac
     shift
@@ -43,6 +44,7 @@ if [ -n "$dupes" ]; then
 fi
 
 mkdir -p "$target"
+installed=()
 
 for src in "${sources[@]}"; do
     name="$(basename "$src")"
@@ -75,4 +77,56 @@ for src in "${sources[@]}"; do
         ln -s "$src" "$dest"
         echo "linked   $name"
     fi
+    installed+=("$src")
 done
+
+# CLAUDE.md that loads alongside the target: ~/.claude/CLAUDE.md, or <project>/CLAUDE.md for <project>/.claude/skills
+parent="$(cd "$target/.." && pwd)"
+if [ "$parent" = "$(cd "$HOME" && pwd)/.claude" ]; then
+    claude_md="$parent/CLAUDE.md"
+elif [ "$(basename "$parent")" = .claude ]; then
+    claude_md="$(dirname "$parent")/CLAUDE.md"
+else
+    echo "warning: $target is not a .claude/skills folder, CLAUDE.md not updated" >&2
+    exit 0
+fi
+
+start='<!-- oleander-ai-toolkit:start -->'
+end='<!-- oleander-ai-toolkit:end -->'
+rest=""
+if [ -f "$claude_md" ]; then
+    # drop the previous block and trailing blank lines
+    rest="$(awk -v s="$start" -v e="$end" '
+        $0 == s { skip = 1 }
+        !skip   { line[++n] = $0 }
+        $0 == e { skip = 0 }
+        END     { while (n > 0 && line[n] ~ /^[[:space:]]*$/) n--; for (i = 1; i <= n; i++) print line[i] }
+    ' "$claude_md")"
+fi
+
+if [ "$mode" = uninstall ] || [ ${#installed[@]} -eq 0 ]; then
+    if [ -f "$claude_md" ]; then
+        if [ -n "$rest" ]; then printf '%s\n' "$rest" > "$claude_md"; else rm "$claude_md"; fi
+        echo "updated  $claude_md"
+    fi
+    exit 0
+fi
+
+{
+    if [ -n "$rest" ]; then printf '%s\n\n' "$rest"; fi
+    echo "$start"
+    echo "## oleander-ai-toolkit"
+    echo
+    echo "Installed from \`$repo\`. Workflows run only when the user types their slash command: when a request fits one, suggest it."
+    echo
+    for src in "${installed[@]}"; do
+        name="$(basename "$src")"
+        desc="$(sed -n 's/^description: *//p' "$src/SKILL.md" | head -n1)"
+        case "$src" in
+            */workflows/*) echo "- \`/$name\` (workflow): ${desc#Workflow: }" ;;
+            *) echo "- \`$name\` (skill): $desc" ;;
+        esac
+    done
+    echo "$end"
+} > "$claude_md"
+echo "updated  $claude_md"

@@ -5,7 +5,7 @@ description: Set up a contract-flow workspace in a project, with its contracts, 
 
 # Contract init
 
-Sets up the workspace that the contract-flow skills share. It configures and explains the flow; it does not write contracts (that is `recontract`).
+Sets up the workspace that the contract-flow skills share. It configures and explains the flow; it does not write contracts.
 
 ## 1. Look for an existing workspace
 
@@ -20,11 +20,8 @@ If one exists, show its configuration and ask whether to change it. Edit only th
 Explore the project first (folder structure, languages, existing docs) so every question comes with a concrete suggestion. Ask them together, numbered, each with your recommended answer:
 
 1. **Workspace location.** Default: `docs/contract-flow/`.
-2. **Contracted domain.** Which code paths are governed by contracts, and which are explicitly excluded (generated code, vendored libraries…).
+2. **Contracted domain.** Which paths are governed by contracts, and which are explicitly excluded (generated code, vendored libraries…).
 3. **Existing documentation.** List what you found (specs, ADRs, PRDs, issue or ticket folders…) and ask what each contains and whether it should later be absorbed into contracts or left alone. Never move or delete it here.
-4. **Alarm mode** for Mr. Wolf: `stop` (default) or `autonomous`.
-
-Levels are not decided here. They are created by `recontract`.
 
 ## 3. Create the workspace
 
@@ -40,4 +37,4 @@ Add `Contract-flow workspace: <workspace>` to the project's `CLAUDE.md` (create 
 
 ## 4. Hand over
 
-Tell the user the workspace is ready and that the next step is `recontract`, to build the contract tree from the existing docs and code.
+Tell the user the workspace is ready and where it is.

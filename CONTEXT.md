@@ -33,19 +33,31 @@ Something a contract covers: a child contract, code, or any other path. Every co
 Ordinary code with no special status. Tests exist only where a contract requires them, and are covered by their own contracts like any other code.
 
 **Clause**
-A single verifiable statement in a contract, with a stable ID (e.g. `§1.2`). Free-form at high levels, increasingly precise (EARS, Given/When/Then) towards the leaves. Child contracts declare which parent clauses they realise; tickets point to the clause violated.
+A single verifiable statement in a contract, with a stable ID and a verification method. Clauses are preconditions (`§R…`, what the part requires), postconditions (`§E…`, what it ensures) or invariants (`§I…`, what always holds). Coarse at high levels, precise at the leaves. Child contracts declare which parent clauses they realise; tickets point to the clause violated.
 
 **Workspace**
 The single folder where a workflow keeps its contracts, tickets and handoffs, together with a README explaining the flow and how to resume it. Its location is chosen at setup.
 
 **Contract tree**
-All contracts of a project, kept in one contracts folder with one subfolder per abstraction level. Each contract has exactly one parent, except the root.
+All contracts of a project, nested by folder: the children of `x.md` live in the folder `x/` next to it. A contract's ID is its path without `.md` (e.g. `system/auth/session`). Each contract has exactly one parent, except the root.
 
 **Abstraction level**
-How far a contract is from the code. Higher levels are vaguer and cover more; lower levels are precise and cover less. The number and names of levels are chosen per project and can change.
+How far a contract is from the code: its depth in the contract tree. Deeper contracts are more precise and cover less. Branches can have different depths; levels are never numbered or named.
 
 **Contracted domain**
 The part of the codebase that is governed by contracts. Code outside it is ignored by parity checks.
+
+**Uncontracted zone**
+Code or resources inside the contracted domain that no contract targets. Allowed, but announced whenever found, with a proposal to contract it.
+
+**Verification method**
+How a clause is proven: `inspection` (reading, with cited evidence; the default), `test`, `static` (a tool such as a type checker or linter), `command` (a command whose result proves it) or `review` (only a person can confirm it).
+
+**Verification contract**
+A leaf contract whose targets are the tests or checks that prove other contracts' clauses. Required whenever a clause is verified by `test`.
+
+**Statement check**
+While contract-flow is active, every statement the user makes about how the system works or should work is checked against the contracts targeting it: contradictions are pointed out, new information leads to a proposed refinement, missing coverage is announced as an uncontracted zone.
 
 **Parity**
 The state where a contract and what it covers agree 1:1. Checked contract ↔ child contracts and, for leaf contracts, contract ↔ code. A higher-level contract cares only that its own statements hold, not how lower levels achieve them; verifying it may still require inspecting everything beneath it.
@@ -62,18 +74,19 @@ A ticket's status is one of:
 - **rerouted**: could not be resolved without changing a contract; its direction changed and it went back to contract refinement.
 - **obsolete**: a contract changed and the discrepancy no longer exists.
 
-**Scoped parity check**
-A parity check limited to the contracts whose responsibility is affected by a change: the changed contract, its subtree and its ancestors. Full checks of the whole tree are rare, because high-level contracts are coarse.
 _Avoid_: issue, bug (those may exist in the project's own docs with other meanings).
+
+**Scoped parity check**
+A parity check limited to the contracts whose responsibility is affected by a change: the changed contract, its subtree and its ancestors. The change is known from the flow itself (contracts refined, files touched while resolving tickets) or stated by the user. Full checks of the whole tree are rare, because high-level contracts are coarse.
 
 **Alarm**
 The moment, while resolving a ticket, when the chosen solution turns out to cost substantially more (or differently) than estimated. By default work stops and a new set of weighed alternatives is proposed to the user; in autonomous mode the lowest-cost alternative is applied and logged instead.
 
 **Recontracting**
-Reorganising the contract tree as a whole: creating it from scratch out of existing docs and code, or moving, merging, splitting contracts and changing levels. Rare and broad.
+Reorganising the contract tree as a whole: creating it from scratch out of existing docs and code, or moving, merging, splitting and re-nesting contracts. Rare and broad.
 
 **Refinement**
 Changing the content of a few contracts for a specific task. Frequent and narrow.
 
 **Stable project**
-A project in which every contract at every level is in parity.
+A project in which every contract in the tree is in parity.

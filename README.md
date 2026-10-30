@@ -6,9 +6,10 @@ Skills and workflows for Claude Code. Terms are defined in [CONTEXT.md](CONTEXT.
 |---|---|---|
 | `contract-flow` | workflow | Keeps code and contracts in 1:1 parity. Run with `/contract-flow`. |
 | `contract-init` | skill | Creates the contract-flow workspace. |
-| `recontract` | skill | Builds or reorganises the whole contract tree. |
+| `contract-reverse` | skill | Writes detailed contracts from existing code. |
+| `recontract` | skill | Builds the contract tree from requirements, or reorganises it. |
 | `contract-refine` | skill | Changes a few contracts for a task. |
-| `parity-check` | skill | Finds contract/code discrepancies and opens tickets. |
+| `parity-check` | skill | Runs the verifications, finds discrepancies and uncontracted files, opens tickets. |
 | `mr-wolf` | skill | Resolves a ticket or implementation document. |
 
 **Requires** Matt Pocock's `grilling` and `handoff` skills ([mattpocock/skills](https://github.com/mattpocock/skills)).

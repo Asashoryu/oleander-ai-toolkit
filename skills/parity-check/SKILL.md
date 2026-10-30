@@ -1,6 +1,6 @@
 ---
 name: parity-check
-description: Verify contract clauses against their targets (child contracts, code, other resources) using each clause's verification method, list every discrepancy and uncontracted zone, and open tickets on request. Use after contracts or code change, or to check whether a project is stable.
+description: Verify contracts against their targets by running each constraint's verification script or check file, find every uncontracted file and thin contract, list every discrepancy, and open tickets on request. Use after contracts or code change, or to check whether a project is stable.
 ---
 
 # Parity check
@@ -9,7 +9,7 @@ Finds where contracts and their targets disagree. It never fixes anything and ne
 
 ## Before starting
 
-Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Contract format** and **Ticket format** sections are binding.
+Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Contract tree**, **Contract format**, **Verification** and **Ticket format** sections are binding.
 
 ## 1. Decide the scope
 
@@ -18,40 +18,45 @@ The scope is given by whoever invokes the check:
 - files that changed, mapped to the contracts that target them
 - contracts or paths the user names
 
-Extend it with the subtrees below those contracts and their ancestors up to the root. Check the whole tree only when the user asks for it. Never check a contract outside the scope just because it exists.
+Extend it with the subtrees below those contracts and the contracts they `realise`, up to the root. Check the whole tree only when asked.
 
-## 2. Verify each clause
+## 2. Coverage (mechanical)
 
-For every clause of every contract in scope, apply its `verify:` method:
+List every file in the scope's paths that is not excluded (`git ls-files` where possible) and every path in the `targets` of every contract (expanding folders). Compare the two lists:
+- a file targeted by no leaf contract is an **uncontracted zone**
+- a target that does not exist is a discrepancy
 
-| Method | What to do | Passes when |
+Do this by listing and comparing, not by judgement. Report the counts.
+
+## 3. Verify each constraint
+
+For every constraint of every contract in scope:
+
+| Verification | What to do | Passes when |
 |---|---|---|
-| `inspection` | Read the targets that realise the clause. | You can cite the path and lines that make it true. If you cannot point to them, it fails. |
-| `test` | Find the verification contract covering this clause, then run its tests. | A verification contract names a test for this clause and the test passes. A missing verification contract or test is a discrepancy. |
-| `static` | Run the named tool and rule. | The tool reports no violation. |
-| `command` | Run the command. | The result matches the one written in the clause. |
-| `review` | Nothing to run. | Never judged: list it as "needs review". |
+| `script` | Run it with the configured script runner. | Exit code 0. Keep its output for the report. |
+| `check` | Follow the check file: look where it says, test every criterion. | Every criterion is met, with path and line cited. If you cannot cite, it fails. |
+| missing | The constraint has no verification, or its file does not exist. | Never: it is a discrepancy. |
 
-Also check, for each contract in scope:
-- **Parent ↔ child**: every parent clause is realised by at least one child (`realises`), no child clause contradicts a parent clause, and every minimum verification method the parent imposes is respected.
-- **Targets**: every target path exists.
-- **Uncontracted zones**: every path in the contracted domain within scope is targeted by some contract. Excluded paths are not reported.
+## 4. Check the contracts themselves
 
-A clause cares only about what it states. Do not raise lower-level imperfections against a coarse clause unless they break that statement.
+For each contract in scope:
+- **Realises**: it contradicts no constraint of the contracts it `realises`, and every parent constraint is backed by a child constraint or by the parent's own verification.
+- **Completeness**: compared with its targets, the documentation covers every responsibility, exposed element, error case and configuration at its level. Name what is missing. A contract made of headings and a few lines is a discrepancy (direction `contract`).
+- **Size**: if it exceeds what the README calls one readable unit, propose a new level.
+- **Notes**: terms and functions used without explanation and missing from **Notes**.
 
-## 3. Report
+## 5. Report
 
-Answer with:
-
-1. **Discrepancies**, each with contract and clause, the conflicting parts (contract text and the target with path and line), the method used and its result, and a proposed direction: `code` (the target must change), `contract` (the clause is wrong or outdated) or `escalate` (the problem is decided higher in the tree). Skip anything already covered by an open ticket.
-2. **Uncontracted zones** found, each with a proposal for which contract should cover it (an existing one or a new one).
-3. **Needs review**: `review` clauses in scope.
-4. A one-line summary: clauses checked, passed, failed.
+1. **Discrepancies**, each with contract and constraint, the conflicting parts (contract text and target with path and line), the verification run and its output, and a proposed direction: `code` (the target must change), `contract` (the contract is wrong, outdated or incomplete) or `escalate` (decided higher in the tree). Skip anything already covered by an open ticket.
+2. **Uncontracted zones**, each with the contract that should cover it (existing or new).
+3. **Contract quality**: incomplete contracts, oversized contracts, missing notes.
+4. A one-line summary: files covered / total, constraints passed / checked.
 
 Then, unless the invoker asked for a report only, ask which discrepancies to open as tickets, and whether to change any direction.
 
-## 4. Open tickets
+## 6. Open tickets
 
 Only when asked, and only for the discrepancies chosen: create `tickets/T-<nnnn>-<slug>.md` following the ticket format, numbering from the highest existing ID. Status `open`, log line `<date> · parity-check · opened`.
 
-If a full check finds no discrepancies, the project is **stable**.
+If a full check finds no discrepancies and no uncontracted zones, the project is **stable**.

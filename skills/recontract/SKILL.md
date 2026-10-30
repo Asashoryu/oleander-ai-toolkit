@@ -1,44 +1,47 @@
 ---
 name: recontract
-description: Build or reorganise a whole contract tree. Creates all contracts at once from existing docs and code, or moves, merges, splits and re-nests contracts, after grilling the user on the proposal. Use for structural changes to contracts, not for editing a few of them.
+description: Build or reorganise a contract tree. Creates the tree from requirements and existing documents when there is no code yet, or moves, merges, splits and re-nests contracts and adds abstraction levels, after grilling the user on the proposal. Use for structural changes to contracts; to contract existing code, use contract-reverse.
 ---
 
 # Recontract
 
-Changes the **structure** of the contract tree: which contracts exist, how they nest and what they target. Changing the content of a few contracts is out of scope.
+Changes the **structure** of the contract tree: which contracts exist, how they nest and what they target. Changing the content of a few contracts is out of scope; documenting existing code is the job of reverse contracting.
 
 ## Before starting
 
-Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Contract format** section is binding. If there is no workspace, say so and stop.
+Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Contract tree**, **Contract format** and **Verification** sections are binding. If there is no workspace, say so and stop.
+
+If the request is to document code that exists but has no contracts, say that this is reverse contracting and stop.
 
 ## 1. Survey
 
-Read, within the contracted domain:
+Read:
 - the existing contract tree, if any
 - the existing documentation listed in the configuration
-- the code: structure, entry points, module boundaries
+- the requirements the user gives
+- the code structure, if any (to place targets, not to document it)
 
 ## 2. Draft a proposal
 
 Propose, without writing anything yet:
-- **Tree**: the root contract (the whole system, coarse) and how it breaks down, as an indented list of contract IDs, each with a one-line purpose and its targets. Nest only where a part has responsibilities worth stating separately; branches can be as shallow or deep as the code needs.
-- **Clauses**: for each contract, its main Ensures and Invariants, with the verification method you propose.
-- **Verification contracts**: where clauses use `test`, the leaf contracts that will target the tests.
-- **Uncontracted zones**: every path in the contracted domain that no contract would target. Propose a contract for each, or confirm it stays uncontracted.
-- **Moves** (when reorganising): for each existing contract, whether it is kept, moved, merged, split or removed, and which clauses go where.
+- **Tree**: the contracts as an indented list of IDs, each with a one-line purpose and its targets (planned files for code that does not exist yet). Nest where a reader would want to study a part separately.
+- **New levels**: for every contract that has grown too large (see the README), the overview it keeps and the children that take the detail.
+- **Constraints**: for each contract, its main constraints, each with the kind of verification (`script` or `check`). A constraint that cannot be verified is reworded or dropped.
+- **Moves** (when reorganising): for each existing contract, whether it is kept, moved, merged, split or removed, and where each constraint goes.
+- **Coverage**: every existing file in the contracted domain and the contract that will target it.
 
-Prefer as few contracts as will do. A contract that only restates its parent is not worth having.
+A contract that only restates its parent is not worth having; a contract too long to read in one go is not either.
 
 ## 3. Grill the proposal
 
-Invoke the `grilling` skill on the proposal. Settle the top of the tree first, then each branch downwards. Do not write until the user confirms.
+Invoke the `grilling` skill on the proposal. Settle the top of the tree first, then each branch downwards. For a new project, grill until every contract has enough to be written in full: purpose, how it should work, interface, errors, configuration. Do not write until the user confirms.
 
 ## 4. Write
 
-- Create the contract files and folders following the contract format.
-- Write clauses from what the docs and code actually say. Where the two disagree, write what the user decided in the grilling and note the disagreement under **Decisions**.
-- When reorganising: keep the IDs of clauses that survive, and update every `targets`, `realises` and ticket that refers to a moved or renamed contract. Set every open ticket on a removed or rewritten clause to `obsolete`, with a log line.
+- Create or move the contract files following the contract format and its writing rules. Write each contract in full, with tables and diagrams, not as a list of headings: a thin contract is a defect.
+- Create the verification file for every new constraint in the tests folder. Scripts for code that does not exist yet will fail; that is expected and becomes a ticket.
+- When reorganising: keep the IDs of surviving constraints, move their verification files with them, and update every `targets`, `realises` and ticket that refers to a moved or renamed contract. Set every open ticket on a removed constraint to `obsolete`, with a log line.
 
 ## 5. Hand over
 
-List the contracts created or changed.
+List the contracts and verifications created, moved or removed.

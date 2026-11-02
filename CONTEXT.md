@@ -19,6 +19,13 @@ A skill a workflow relies on that is not part of this toolkit. Listed as a prere
 **Handoff**
 A document that captures where a workflow stopped, so a fresh session can resume it.
 
+## Learning
+
+**Study folder**
+The folder inside an Obsidian vault (or, with no vault, a folder of Obsidian-format notes) where `learn-with-obsidian` keeps its notes, chosen once. Not the contract-flow workspace.
+**Hub, reference note, source note, record**
+The four note types of `learn-with-obsidian`: a topic's entry point, one atomic concept, one study source, and one session's findings. A topic is never finished.
+
 ## Contracts
 
 **Contract**

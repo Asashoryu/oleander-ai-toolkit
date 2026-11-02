@@ -92,7 +92,7 @@ if ($Uninstall -or $installed.Count -eq 0) {
 }
 
 $lines = @($start, '## oleander-ai-toolkit', '',
-    "Installed from ``$PSScriptRoot``. Workflows run only when the user types their slash command: when a request fits one, suggest it.", '')
+    "Installed from ``$PSScriptRoot``. Skills and workflows are invoked automatically when a request fits them; the user can also type the slash command.", '')
 foreach ($src in $installed) {
     $desc = (Select-String -Path (Join-Path $src.FullName 'SKILL.md') -Pattern '^description:\s*(.*)' | Select-Object -First 1).Matches.Groups[1].Value
     if ($src.Parent.Name -eq 'workflows') { $lines += "- ``/$($src.Name)`` (workflow): $($desc -replace '^Workflow:\s*', '')" }

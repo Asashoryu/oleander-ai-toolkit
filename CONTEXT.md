@@ -29,14 +29,18 @@ The four note types of `learn-with-obsidian`: a topic's entry point, one atomic 
 ## Contracts
 
 **Contract**
-A readable document about one part of the system: what it is for, how it works and what it exposes, written in simple language with tables and diagrams, plus the constraints it imposes on its targets. It names the contracts it respects (`realises`) and the files it constrains (`targets`). Design decisions are part of the contract at the right abstraction level, never standalone documents. A contract made only of headings and a few lines is a defect.
+A readable document about one part of the system, written in simple language and shown mostly through diagrams and tables, plus the clauses it imposes on the files it enforces. It has a fixed header (`name`, `realizes`, `enforces`) and five sections in a fixed order: Purpose, View, Clauses, Verification, Notes (optional). Only these are rigid; the content inside is free. It leaves no grey zone: everything the parts do or expose is covered by a clause or declared out of the contract. Design decisions are part of the contract at the right abstraction level, never standalone documents. A contract made only of headings and a few lines is a defect.
 _Avoid_: spec (a spec file is any skill's input; a contract is specifically documentation with obligations).
-**Target**
-A file or folder a contract constrains. Every contract lists its targets explicitly, so a person or an agent can navigate from it to what it governs. Targets never point back to their contract.
+**Enforced file**
+A file or folder a contract binds, listed in its `enforces` field so a person or an agent can navigate from the contract to what it governs. Enforced files never point back to their contract.
+**Name**
+How clauses and tickets are identified: at most 3 words joined by `_`, in the language of the project, describing what they mean. Never a number. A clause name is unique in its contract, a ticket name in the project.
 **Verification**
-How a constraint is proven, stored in the tests folder chosen at setup. Either a **script** (deterministic, passes on exit code 0) or a **check file** (criteria judged by the model, with cited evidence). A constraint with no verification is not accepted.
-**Constraint**
-A single checkable fact a contract imposes on its targets, with a stable ID (`C1`, `C2`…), a verification and an enforcement (when the verification runs). Coarse at high levels, precise at the leaves. Referenced as `<contract id>#C<n>`; tickets point to the constraint violated.
+How a clause is proven: one row per clause in the Verification section, with a type from a closed list (`unit`, `interface`, `integration`, `end-to-end`, `script`, `ai-check`; a project may add more) and a file in the tests folder chosen at setup. Every type but `ai-check` is a deterministic script that passes on exit code 0; `ai-check` is a check file judged by the model with cited evidence, used only when no script can decide. A clause with no verification is not accepted.
+**Clause**
+A single checkable fact a contract imposes on its enforced files, precise enough to leave no grey zone. Coarse at high levels, exact at the leaves. Referenced as `<contract id>#<clause name>`; tickets point to the clause violated.
+**Contract lint**
+The script `contract-lint.py` in the tests folder. It checks only the rigid parts of the template (header, sections, names, verification rows, tickets). A contract that fails it goes to contract refinement before any other check.
 **Workspace**
 The single folder where a workflow keeps its contracts, tickets and handoffs, together with a README explaining the flow, the formats and the configuration. Its location, and that of the tests folder, are always chosen at setup.
 **Contract tree**
@@ -48,18 +52,18 @@ How far a contract is from the code: its depth in the contract tree. Deeper cont
 The part of the codebase that is governed by contracts. Code outside it is ignored by parity checks.
 
 **Uncontracted zone**
-A file inside the contracted domain, not excluded, that no leaf contract targets. Found mechanically by comparing the file list with all targets, announced whenever found, with a proposal to contract it.
+A file inside the contracted domain, not excluded, that no leaf contract enforces. Found mechanically by comparing the file list with all enforced files, announced whenever found, with a proposal to contract it.
 **Notes**
-The final section of every contract, listing each term, function or name used in it whose meaning the text does not explain.
+The optional last section of a contract, listing each term, function or name used in it whose meaning the text does not explain.
 **Reverse contracting**
-Writing contracts from existing code: every file read, every responsibility documented, every file covered, every constraint given a verification.
+Writing contracts from existing code: every file read, every responsibility documented, every file covered, every clause given a verification.
 **Statement check**
-While contract-flow is active, every statement the user makes about how the system works or should work is compared with the contracts and with the code they target. If the code agrees with the contract, the user is corrected; if it agrees with the user, the contract is outdated and gets refined; otherwise the user decides. Missing coverage is announced as an uncontracted zone.
+While contract-flow is active, every statement the user makes about how the system works or should work is compared with the contracts and with the code they enforce. If the code agrees with the contract, the user is corrected; if it agrees with the user, the contract is outdated and gets refined; otherwise the user decides. Missing coverage is announced as an uncontracted zone.
 **Parity**
-The state where a contract and what it covers agree 1:1. Checked contract ↔ child contracts and, for leaf contracts, contract ↔ code. A higher-level contract cares only that its own statements hold, not how lower levels achieve them; verifying it may still require inspecting everything beneath it.
+The state where a contract and what it covers agree 1:1. Checked contract ↔ child contracts and, for leaf contracts, contract ↔ code. Gaps, outdated contracts and off-template contracts are not parity problems: they are solved by refinement. A higher-level contract cares only that its own statements hold, not how lower levels achieve them; verifying it may still require inspecting everything beneath it.
 
 **Ticket**
-A discrepancy found by a parity check between a contract and one of its targets, including a constraint that nothing satisfies yet. Implementing new work and fixing errors are both done by resolving tickets. Each ticket has a direction, decided when it is created:
+A discrepancy found by a parity check between a contract and one of its enforced files, including a clause that nothing satisfies yet. Identified as `T-<name>` (a name, see above). Implementing new work and fixing errors are both done by resolving tickets. Each ticket has a direction, decided when it is created:
 - **code**: the code must change to honour the contract.
 - **contract**: the contract itself must change.
 - **escalate**: a higher abstraction level must be re-examined first.
@@ -84,4 +88,4 @@ Changing the structure of the contract tree: building it from requirements when 
 Changing the content of a few contracts for a specific task. Frequent and narrow.
 
 **Stable project**
-A project in which every constraint passes and no file is uncontracted.
+A project in which every contract passes the lint, every clause passes and no file is uncontracted.

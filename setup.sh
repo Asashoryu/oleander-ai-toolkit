@@ -117,7 +117,7 @@ fi
     echo "$start"
     echo "## oleander-ai-toolkit"
     echo
-    echo "Installed from \`$repo\`. Workflows run only when the user types their slash command: when a request fits one, suggest it."
+    echo "Installed from \`$repo\`. Skills and workflows are invoked automatically when a request fits them; the user can also type the slash command."
     echo
     for src in "${installed[@]}"; do
         name="$(basename "$src")"

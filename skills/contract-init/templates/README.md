@@ -7,21 +7,29 @@ This folder holds the **contracts** that document this project, the **tickets** 
 
 ```mermaid
 flowchart LR
-    A[Contracts] -->|parity check| B{Discrepancies?}
+    A[Contracts] -->|lint + parity check| B{Problems?}
     B -->|no| S[Stable project]
-    B -->|yes| T[Tickets]
-    T -->|code| W[Mr. Wolf fixes the code]
-    T -->|contract / escalate| R[Refine the contracts]
+    B -->|contract is wrong, outdated, incomplete or off-template| R[Contract refine]
+    B -->|code breaks a clause| T[Tickets]
+    T --> W[Mr. Wolf fixes the code]
     W --> A
     R --> A
 ```
 
-1. A **contract** documents one part of the project: what it is for, how it works, what it exposes, and the **constraints** it imposes on its targets. It is written to be read by a person, not only checked by a tool.
-2. Contracts are nested: the root documents the whole system, its children document its parts, down to single files. Every file of the contracted domain is a target of some contract.
-3. Every constraint has a **verification**: a script (deterministic) or a check file (judged by the model). A constraint that cannot be verified is not accepted.
-4. A **parity check** runs the verifications, finds uncontracted files and lists every discrepancy. On request, discrepancies become **tickets** with a direction: `code`, `contract` or `escalate`.
-5. Code tickets are resolved by **Mr. Wolf**. Contract and escalate tickets go back to the contracts, always after a grilling session.
-6. The project is **stable** when every constraint passes and no file is uncontracted.
+| Problem | Solved by |
+|---|---|
+| The contract does not reflect the latest requests | `contract-refine` |
+| The contract does not follow the template | `contract-refine` |
+| Something the parts do or expose has no clause (a gap) | `contract-refine` |
+| The code breaks a clause | `parity-check`, then a code ticket, solved by Mr. Wolf |
+
+1. A **contract** documents one part of the project: what it is for, how it works (shown with diagrams and tables), and the **clauses** that bind the parts it enforces. It is written to be read by a person, not only checked by a tool.
+2. A contract leaves **no grey zone**: everything the parts do, expose, accept, return or must never do is covered by a clause, or declared out of the contract with the reason.
+3. Contracts are nested: the root documents the whole system, its children document its parts, down to single files. Every file of the contracted domain is enforced by some contract.
+4. Every clause has a **verification**: how it is proven, with a type chosen from a closed list. A clause that cannot be verified is not accepted.
+5. **`contract-lint`** checks that every contract and ticket follows the template. A contract that fails it is sent to `contract-refine` before anything else is checked.
+6. A **parity check** runs the verifications and lists every discrepancy. On request, discrepancies become **tickets**.
+7. The project is **stable** when every contract passes the lint, every clause passes and no file is uncontracted.
 
 To start or resume, run `/contract-flow`.
 
@@ -36,6 +44,8 @@ To start or resume, run `/contract-flow`.
 | Script runner | {{how scripts are run, e.g. `bash`, `pwsh`, `python`, `npm test --`}} |
 | Contracted domain | {{paths governed by contracts}} |
 | Excluded | {{paths out of scope, never reported as uncontracted, or "none"}} |
+| Extra verification types | {{types added to the closed list below, or "none"}} |
+| Hooks | {{where verifications also run, e.g. CI, pre-commit, or "none"}} |
 | Existing documentation | {{docs that already exist and what they contain}} |
 
 ## Folders
@@ -43,9 +53,24 @@ To start or resume, run `/contract-flow`.
 | Folder | Contents |
 |---|---|
 | `contracts/` | The contract tree. The children of `x.md` live in the folder `x/` next to it. |
-| `tickets/` | One file per ticket, `T-<nnnn>-<slug>.md`. Closed tickets stay here with their status. |
+| `tickets/` | One file per ticket, `T-<name>.md`. Closed tickets stay here with their status. |
 | `handoff/` | Session handoffs. The most recent one says what to do next. |
-| tests folder | One script or check file per verification, named after the contract: `<contract id>/<constraint>.<ext>`. |
+| tests folder | `contract-lint.py`, plus one verification per clause: `<contract id>/<clause name>.<ext>`. |
+
+## Names
+
+Clauses and tickets are named, never numbered.
+
+| Rule | Example |
+|---|---|
+| At most **3 words**, joined by `_`, only `a-z`, `0-9` and `_` | `session_expires`, `T-timeout_too_long` |
+| Written in the language of the project | |
+| Describes what it means, so a reader of another contract understands a reference without opening it | |
+| A clause name is unique inside its contract; a ticket name is unique in the project | |
+| If a name is taken, reword it, never add a number | |
+| A name never changes once written, unless every reference is updated | |
+
+A clause is referred to as `<contract id>#<clause name>`, e.g. `system/auth/session#session_expires`. A ticket is referred to by its ID, e.g. `T-timeout_too_long`.
 
 ## Contract tree
 
@@ -61,30 +86,32 @@ contracts/
 
 - A contract's **ID is its path** inside `contracts/` without `.md`. Its parent is the contract named after the folder it sits in.
 - A contract with no children is a single file; its folder is created with its first child.
-- **New abstraction level.** When a contract grows too large to read in one go (roughly: more than ~300 lines, more than ~15 targets, or several parts a reader would want to study separately), it is split: the contract keeps the overview and its children take the detail. The split is always proposed and confirmed, never automatic.
-- **Coverage.** Every file of the contracted domain that is not excluded must be a target of at least one leaf contract. A file targeted by no contract is an **uncontracted zone**.
+- **New abstraction level.** When a contract grows too large to read in one go (roughly: more than ~300 lines, more than ~15 enforced files, or several parts a reader would want to study separately), it is split: the contract keeps the overview and its children take the detail. The split is always proposed and confirmed, never automatic.
+- **Coverage.** Every file of the contracted domain that is not excluded must be enforced by at least one leaf contract. A file enforced by no contract is an **uncontracted zone**.
 
 ## Contract format
 
-A contract is documentation first. Only the header and the **Constraints** table have a fixed shape; everything in between is written freely, at the abstraction level of the contract.
+A contract has **five sections in a fixed order** and a **fixed header**. These are the only rigid parts. Inside the sections, write freely, at the abstraction level of the contract, as long as it is shown more than told.
 
 ### Writing rules
 
 - **Simple language.** Short sentences, everyday words. One idea per paragraph.
-- **Show, don't only tell.** Prefer a table to a list, a list to a paragraph, and a diagram to a description of a flow. Use what Markdown offers:
-  - tables for options, fields, parameters, states, responsibilities
-  - `mermaid` diagrams for flows, sequences, states, dependencies
+- **Show, don't only tell.** Prefer a diagram or a table to a list, and a list to a paragraph. Use:
+  - `mermaid` diagrams for flows, sequences, states, dependencies, structure
+  - tables for options, fields, parameters, states, responsibilities, views of the same data from different sides
   - trees (code blocks) for folder layouts
   - short code snippets for interfaces and examples
-- **Complete.** Document everything the targets do at this level: every responsibility, entry point, input and output, error case, configuration and dependency. A reader must not need to open the code to understand what the part does. Detail too fine for this level goes into a child contract, not away.
-- **No undefined terms.** Every term, function, acronym or name whose meaning is not explained in the text goes into **Notes**.
+- **No grey zones.** Before writing the clauses, list every responsibility, entry point, input, output, error case, configuration and dependency of the parts at this level. Each one gets a clause, or is declared out of the contract with the reason. Detail too fine for this level goes into a child contract.
+- **Few entries, each useful.** A table row or a note that nobody could act on or verify is removed.
+- **No undefined terms.** A term whose meaning the text does not explain goes into **Notes**.
 
 ### Template
 
 ~~~markdown
 ---
-realises: [system/auth]           # contracts this one respects (its parent and any other); not on the root
-targets:                          # required: everything this contract constrains
+name: Session handling            # at most 3 words
+realizes: [system/auth]           # contracts this one respects (its parent and any other); empty only on the root
+enforces:                         # everything this contract binds; at least one path
   - src/auth/session.py
   - src/auth/store/
 ---
@@ -94,9 +121,10 @@ targets:                          # required: everything this contract constrain
 ## Purpose
 <what this part is for and why it exists, in 2-4 lines>
 
-## How it works
-<free documentation: overview, flows, states, data, decisions and their reasons.
-Tables and diagrams preferred. Example:>
+## View
+<at least one diagram, table or tree that shows how the part works: flows, states,
+data, structure, interface. Extra sections (decisions, examples, interface...) may
+follow here as ### headings.>
 
 ```mermaid
 sequenceDiagram
@@ -111,16 +139,21 @@ sequenceDiagram
 | active | used in the last 30 min | active, expired |
 | expired | idle for 30 min | none |
 
-## Interface
-<what it exposes: functions, endpoints, commands, files, events. Table preferred, or "None".>
+## Clauses
 
-## Constraints
+| Name | Clause |
+|---|---|
+| `no_session_401` | A request without a valid session gets 401. |
+| `session_expires` | A session expires after 30 minutes of inactivity. |
+| `no_password_logs` | Passwords never appear in logs. |
 
-| ID | Constraint | Verification | Enforcement |
+## Verification
+
+| Name | Type | Proves | File |
 |---|---|---|---|
-| C1 | A request without a valid session gets 401. | script: `system/auth/session/C1.sh` | CI, parity check |
-| C2 | A session expires after 30 minutes of inactivity. | script: `system/auth/session/C2.sh` | parity check |
-| C3 | Passwords never appear in logs. | check: `system/auth/session/C3.md` | parity check |
+| `no_session_401` | interface | the API answers 401 with no cookie, an invalid one, an expired one | `system/auth/session/no_session_401.py` |
+| `session_expires` | unit | a session idle for 30 min is rejected | `system/auth/session/session_expires.py` |
+| `no_password_logs` | ai-check | no log call can print a password-like value | `system/auth/session/no_password_logs.md` |
 
 ## Notes
 | Term | Meaning |
@@ -129,25 +162,33 @@ sequenceDiagram
 | `refresh()` | <what it does> |
 ~~~
 
-### Constraints
+Only **Notes** is optional; write it when the text leaves a term unexplained.
 
-- A constraint states **one** checkable fact about the targets. High in the tree constraints are coarse ("client and server talk only over HTTP"); at the leaves they are precise.
-- IDs (`C1`, `C2`…) never change once written. A removed constraint leaves a gap. Elsewhere it is referenced as `<contract id>#C<n>`, e.g. `system/auth/session#C2`.
-- A contract that `realises` another must not contradict its constraints, and every constraint of a parent must be backed by at least one child constraint or by the parent's own verification.
+### Clauses
+
+- A clause states **one** checkable fact about the enforced files, precise enough that nobody can claim the contract allows what it does not say. High in the tree clauses are coarse ("client and server talk only over HTTP"); at the leaves they are exact.
+- Names follow the rules in **Names**. A removed clause leaves nothing behind.
+- A contract that `realizes` another must not contradict its clauses, and every clause of a parent must be backed by at least one child clause or by the parent's own verification.
 
 ### Verification
 
-Every constraint has exactly one verification, stored in the tests folder.
+Every clause has **exactly one** row in **Verification**, with a type from this closed list (plus any extra type added in the configuration):
 
-| Kind | File | Passes when |
-|---|---|---|
-| `script` | An executable script (any language the **Script runner** supports). Deterministic: same targets, same result. | It exits with code 0. Its output explains any failure. |
-| `check` | A Markdown check file, judged by the model. For constraints no script can decide (readability, intent, absence of something across many files). | The model, following the file, finds every criterion met, citing path and line. |
+| Type | Proves | File | Passes when |
+|---|---|---|---|
+| `unit` | one function or class in isolation | script in the tests folder | exit code 0 |
+| `interface` | what a part exposes (API, CLI, file format) as a caller sees it | script | exit code 0 |
+| `integration` | several parts working together | script | exit code 0 |
+| `end-to-end` | a whole user-visible flow | script | exit code 0 |
+| `script` | any other deterministic check: file structure, grep, static rule | script | exit code 0 |
+| `ai-check` | what no script can decide (readability, intent, absence of something across many files) | check file (`.md`) | the model finds every criterion met, citing path and line |
 
-A check file has this shape:
+Use `ai-check` only when no deterministic type can decide the clause.
+
+An `ai-check` file has this shape:
 
 ```markdown
-# system/auth/session#C3: passwords never appear in logs
+# system/auth/session#no_password_logs
 
 ## Look at
 - src/auth/**, every call to the logger
@@ -160,19 +201,35 @@ A check file has this shape:
 Any log call could print a password-like value. Cite the line.
 ```
 
-**Enforcement** says when the verification runs: `parity check` (always), plus `CI`, `pre-commit` or other hooks if the project wires the script in.
+A script exits 0 when the clause holds and prints why when it does not. The **Hooks** setting says where else the verifications run (CI, pre-commit...); the parity check always runs them.
 
-A constraint with no verification, or whose verification file is missing, is itself a discrepancy.
+A clause with no verification row, or whose file is missing, is a discrepancy.
+
+### Lint
+
+`contract-lint.py` in the tests folder checks the rigid parts and nothing else:
+
+| Check | Fails when |
+|---|---|
+| Header | `name` missing or over 3 words; `realizes` missing (empty only on the root); `enforces` empty or naming a path that does not exist |
+| Sections | the five sections are not present in this order (Notes may be absent) |
+| View | it has no diagram, table or tree |
+| Names | a clause or ticket name breaks the rules in **Names**, or is not unique |
+| Verification | a clause has no row or more than one, a row has no clause, the type is not in the list, or the file does not exist |
+| Tickets | file name and `id` differ, or a required field is missing |
+
+Run it with `<script runner> <tests folder>/contract-lint.py <workspace> <tests folder>`. It does not judge language or completeness: the parity check judges completeness.
 
 ## Ticket format
 
 ```markdown
 ---
-id: T-0007
+id: T-timeout_too_long
 status: open            # open | resolved | rerouted | obsolete
 direction: code         # code | contract | escalate
 contract: system/auth/session
-constraint: C2
+clause: session_expires
+date: 2026-10-28
 ---
 
 # Sessions expire after one hour instead of 30 minutes
@@ -181,7 +238,7 @@ constraint: C2
 <in plain words: what is wrong and why it matters>
 
 ## Conflict
-- contracts/system/auth/session.md#C2: "A session expires after 30 minutes of inactivity."
+- contracts/system/auth/session.md#session_expires: "A session expires after 30 minutes of inactivity."
 - src/auth/session.py:42: `SESSION_TIMEOUT = 3600`
 
 ## Verification

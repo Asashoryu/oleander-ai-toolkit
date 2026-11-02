@@ -10,10 +10,11 @@ Skills and workflows for Claude Code. Terms are defined in [CONTEXT.md](CONTEXT.
 | `recontract` | skill | Builds the contract tree from requirements, or reorganises it. |
 | `contract-refine` | skill | Changes a few contracts for a task. |
 | `parity-check` | skill | Runs the verifications, finds discrepancies and uncontracted files, opens tickets. |
+| `contract-handoff` | skill | Records where a contract-flow session stopped, in the workspace, so it can resume. |
 | `mr-wolf` | skill | Resolves a ticket or implementation document. |
 | `learn-with-obsidian` | skill | Teaches a topic or digests a source over multiple sessions and saves the knowledge as linked notes in an Obsidian vault. |
 
-**Requires** Matt Pocock's `grilling` and `handoff` skills ([mattpocock/skills](https://github.com/mattpocock/skills)).
+**Requires** Matt Pocock's `mattpocock-skills:grilling` skill ([mattpocock/skills](https://github.com/mattpocock/skills)).
 
 ## Install
 

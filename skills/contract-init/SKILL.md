@@ -1,6 +1,6 @@
 ---
 name: contract-init
-description: Set up a contract-flow workspace in a project, with its contracts, tickets and handoff folders, a tests folder for verifications, and a README explaining the flow, the contract format and the configuration. Use when starting contract-flow in a new project or changing its configuration.
+description: Set up a contract-flow workspace in a project, with its contracts, tickets and handoff folders, a tests folder for verifications and the contract lint, and a README explaining the flow, the contract format and the configuration. Use when starting contract-flow in a new project or changing its configuration.
 ---
 
 # Contract init
@@ -21,7 +21,8 @@ Explore the project first (folder structure, languages, build and test tools, ex
 
 1. **Workspace location.** Where contracts, tickets and handoffs go.
 2. **Tests folder.** Where verification scripts and check files go: inside the workspace, or in the project's own test folder.
-3. **Script runner.** How verification scripts are run, matching what the project already uses (e.g. `bash`, `pwsh`, `python`, `node`, `npm test --`).
+3. **Script runner.** How verification scripts are run, matching what the project already uses (e.g. `bash`, `pwsh`, `python`, `node`, `npm test --`). The lint is a Python script (`python3 -I`), so Python 3 is needed for it whatever the runner.
+   **Extra verification types** and **hooks** (CI, pre-commit) where verifications should also run: ask, suggesting none if the project has neither.
 4. **Contracted domain.** Which paths are governed by contracts, and which are excluded (generated code, vendored libraries, build output…).
 5. **Existing documentation.** List what you found (specs, ADRs, PRDs, issue folders…) and ask what each contains and whether it should later be absorbed into contracts or left alone. Never move or delete it here.
 
@@ -33,8 +34,10 @@ Explore the project first (folder structure, languages, build and test tools, ex
 ├── contracts/
 ├── tickets/
 └── handoff/
-<tests folder>/    created if missing
+<tests folder>/    created if missing, with contract-lint.py copied from templates/
 ```
+
+Copy `templates/contract-lint.py` into the tests folder.
 
 Add `Contract-flow workspace: <workspace>` to the project's `CLAUDE.md` (create it if missing; also `AGENTS.md` if the project has one) so new sessions find it.
 

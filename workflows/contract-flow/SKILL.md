@@ -1,12 +1,11 @@
 ---
 name: contract-flow
-description: Workflow: keep a project's code and its contracts in 1:1 parity, from first setup to a stable project. Contracts are readable documentation with verified constraints. Orchestrates contract-init, contract-reverse, recontract, contract-refine, parity-check and mr-wolf.
-disable-model-invocation: true
+description: Workflow: keep a project's code and its contracts in 1:1 parity, from first setup to a stable project. Contracts are readable documentation with verified clauses. Orchestrates contract-init, contract-reverse, recontract, contract-refine, parity-check and mr-wolf.
 ---
 
 # Contract flow
 
-Every part of the project is documented by a **contract**: readable documentation (tables, diagrams, simple language) that targets specific files and imposes **constraints** on them, each verified by a script or a check file. Contracts are nested from the whole system down to single files, and every file is covered. This workflow loops until every constraint passes and nothing is uncontracted:
+Every part of the project is documented by a **contract**: readable documentation (tables, diagrams, simple language) that enforces specific files through named **clauses**, each with a declared verification (unit, interface, integration, end-to-end, script or ai-check). Contracts follow one fixed template, checked by `contract-lint`, and leave no grey zone. They are nested from the whole system down to single files, and every file is covered. This workflow loops until every contract conforms, every clause passes and nothing is uncontracted:
 
 ```
 change contracts (grilling) → parity check → tickets → Mr. Wolf resolves code tickets
@@ -19,13 +18,13 @@ change contracts (grilling) → parity check → tickets → Mr. Wolf resolves c
 - `contract-init`: creates the workspace and its configuration
 - `contract-reverse`: writes detailed contracts from existing code
 - `recontract`: builds the tree from requirements, or reorganises it
-- `contract-refine`: changes a few contracts for a task
-- `parity-check`: runs verifications, finds uncontracted files and thin contracts, opens tickets on request
+- `contract-refine`: changes a few contracts for a task, and brings off-template, outdated or incomplete contracts back to standard
+- `parity-check`: runs the lint and the verifications, finds uncontracted files and gaps, opens tickets on request
 - `mr-wolf`: resolves code tickets one at a time
-- `grilling` (external, used by `recontract` and `contract-refine`)
-- `handoff` (external): records where the flow stopped
+- `mattpocock-skills:grilling` (external, used by `recontract` and `contract-refine`)
+- `contract-handoff`: records where the flow stopped
 
-Both external skills come from Matt Pocock's skills and must be installed beforehand.
+The external skill comes from Matt Pocock's skills and must be installed beforehand.
 
 ## Workspace
 
@@ -37,7 +36,7 @@ These rules hold from the moment `/contract-flow` starts until the user stops it
 
 ### Statement check
 
-Whenever the user states how something works or should work, find the contracts that target it, read the relevant constraints and documentation, then read the code they target. Decide:
+Whenever the user states how something works or should work, find the contracts that enforce it, read the relevant clauses and documentation, then read the code they enforce. Decide:
 
 | Contract says | Code does | Then |
 |---|---|---|
@@ -75,33 +74,33 @@ Never silently accept a statement that contradicts a contract, and never change 
   - check a part of the project, or all of it (step 3)
 
 ### 2. Change contracts
-- **Entry:** a new requirement or statement, or tickets with direction `contract` / `escalate` or status `rerouted`.
+- **Entry:** a new requirement or statement, tickets with direction `contract` / `escalate` or status `rerouted`, or a contract that failed `contract-lint`, is outdated or has a gap (found by the parity check).
 - **Invoke:** `contract-refine`. If the change is structural or a contract needs a new level, invoke `recontract`. If it is about code that has no contract, invoke `contract-reverse`.
 - **Output:** changed contracts and verifications, added to the scope.
 
 ### 3. Parity check
 - **Invoke:** `parity-check` with the tracked scope (or what the user named).
-- It lists discrepancies, uncontracted zones and contract quality problems, and asks which to open as tickets. Offer `contract-reverse` for each uncontracted zone and `contract-refine` for each thin contract.
-- If a full check finds nothing, the project is **stable**: invoke `handoff`, tell the user and stop. If a scoped check finds nothing, say so and offer a full check.
+- It first runs `contract-lint`: a contract that fails goes to `contract-refine` (step 2) before anything else is checked on it. Then it lists code discrepancies, uncontracted zones and contract gaps, and asks which code discrepancies to open as tickets. Offer `contract-reverse` for each uncontracted zone and `contract-refine` for each gap or off-template contract.
+- If a full check finds nothing, the project is **stable**: invoke `contract-handoff`, tell the user and stop. If a scoped check finds nothing, say so and offer a full check.
 
 ### 4. 🛑 Tickets are open
 - Summarise the open tickets by direction. Ask the user:
   - resolve them, or stop here
   - for code tickets: Mr. Wolf interactive (you choose each solution), automatic (his recommendation, stopping only on alarm) or autonomous alarm (never stops)
   - sequential (default) or parallel
-- If they stop, invoke `handoff` and end.
+- If they stop, invoke `contract-handoff` and end.
 
 ### 5. Resolve code tickets
 - **Invoke:** `mr-wolf` on each `open` ticket with direction `code`, passing the ticket as its document, and tell it:
   - **mode**: the one chosen at step 4
-  - **constraints**: the ticket's contract and every contract it `realises`, up to the root
-  - **check**: after executing, run the ticket constraint's verification, then `parity-check` scoped to the files changed, report only, no tickets
+  - **clauses**: the ticket's contract and every contract it `realizes`, up to the root
+  - **check**: after executing, run the ticket clause's verification, then `parity-check` scoped to the files changed, report only, no tickets
   - **outcome**: set the ticket's `status` to `resolved`; if it ends `blocked`, set `status: rerouted` and `direction: contract` instead
-- **Parallel**, only if the user asked: group tickets so that no two groups share a target or a touched file, and run one `mr-wolf` agent per group. Tickets in the same group run in sequence.
+- **Parallel**, only if the user asked: group tickets so that no two groups share an enforced file or a touched file, and run one `mr-wolf` agent per group. Tickets in the same group run in sequence.
 - **Output:** tickets `resolved` or `rerouted`; files touched added to the scope.
 
 ### 6. Loop
 - If any tickets have direction `contract` / `escalate` or status `rerouted`, go to step 2 with them.
 - Otherwise go to step 3 with the tracked scope.
 
-Invoke `handoff` whenever the user stops the flow, writing to `<workspace>/handoff/`, so `/contract-flow` can resume it in a new session.
+Invoke `contract-handoff` whenever the user stops the flow, writing to `<workspace>/handoff/`, so `/contract-flow` can resume it in a new session.

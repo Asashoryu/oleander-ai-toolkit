@@ -9,7 +9,7 @@ Finds where contracts and the files they enforce disagree. It never fixes anythi
 
 ## Before starting
 
-Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Names**, **Contract tree**, **Contract format** (with **Verification** and **Lint**) and **Ticket format** sections are binding.
+Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Names**, **Contract graph**, **Contract format** (with **Verification** and **Lint**) and **Ticket format** sections are binding.
 
 ## 1. Decide the scope
 
@@ -18,7 +18,7 @@ The scope is given by whoever invokes the check:
 - files that changed, mapped to the contracts that enforce them
 - contracts or paths the user names
 
-Extend it with the subtrees below those contracts and the contracts they `realize`, up to the root. Check the whole tree only when asked.
+Extend it with every descendant of those contracts (through `enforces`) and every ancestor (through `implements`: every parent, up to the roots). Check the whole graph only when asked.
 
 ## 2. Lint (mechanical, first)
 
@@ -27,7 +27,7 @@ Run `contract-lint.py` from the tests folder with the configured script runner (
 ## 3. Coverage (mechanical)
 
 List every file in the scope's paths that is not excluded (`git ls-files` where possible) and every path in the `enforces` of every contract (expanding folders). Compare the two lists:
-- a file enforced by no leaf contract is an **uncontracted zone**
+- a file enforced by no leaf contract (a contract that enforces files) is an **uncontracted zone**
 - an enforced path that does not exist is a discrepancy
 
 Do this by listing and comparing, not by judgement. Report the counts.
@@ -40,20 +40,21 @@ For every clause of every conforming contract in scope, use the row in its **Ver
 |---|---|---|
 | `unit`, `interface`, `integration`, `end-to-end`, `script`, or an extra type from the configuration | Run the file with the configured script runner. | Exit code 0. Keep its output for the report. |
 | `ai-check` | Follow the check file: look where it says, test every criterion. | Every criterion is met, with path and line cited. If you cannot cite, it fails. |
+| `covered-by` | Read the clauses it names in the enforced contracts, in their written form, and judge whether together they satisfy the clause. Do not read the code: the leaves prove it. | The named clauses cover every part of the clause, with their text cited. |
 
 A clause whose verification is missing is off-template (the lint already caught it).
 
 ## 5. Check the contracts themselves
 
 For each conforming contract in scope:
-- **Realizes**: it contradicts no clause of the contracts it `realizes`, and every parent clause is backed by a child clause or by the parent's own verification.
+- **Implements**: it contradicts no clause of any contract it `implements` (every parent), and every clause of a contract that enforces contracts is covered by clauses of those contracts.
 - **Completeness (`ai-check`)**: read the enforced files and look for anything they do, expose, accept, return or refuse that no clause covers, or that the View does not show. Name each gap. A contract made of headings and a few lines is a gap. Gaps are never code tickets: they go to `contract-refine`.
 - **Size**: if it exceeds what the README calls one readable unit, propose a new level.
 - **Notes**: terms used without explanation and missing from **Notes**.
 
 ## 6. Report
 
-1. **Discrepancies**: a clause the code breaks, with contract and clause, the conflicting parts (contract text and enforced file with path and line), the verification run and its output, and a proposed direction: `code` (the files must change), `contract` or `escalate` (decided higher in the tree). Skip anything already covered by an open ticket.
+1. **Discrepancies**: a clause the code breaks, with contract and clause, the conflicting parts (contract text and enforced file with path and line), the verification run and its output, and a proposed direction: `code` (the files must change), `contract` or `escalate` (decided higher in the graph). Skip anything already covered by an open ticket.
 2. **For `contract-refine`**, with no ticket: off-template contracts (the lint output), gaps, oversized contracts, missing notes.
 3. **Uncontracted zones**, each with the contract that should cover it (existing or new).
 4. A one-line summary: contracts conforming / total, files covered / total, clauses passed / checked.

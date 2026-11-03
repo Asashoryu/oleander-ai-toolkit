@@ -5,7 +5,7 @@ description: Workflow: keep a project's code and its contracts in 1:1 parity, fr
 
 # Contract flow
 
-Every part of the project is documented by a **contract**: readable documentation (tables, diagrams, simple language) that enforces specific files through named **clauses**, each with a declared verification (unit, interface, integration, end-to-end, script or ai-check). Contracts follow one fixed template, checked by `contract-lint`, and leave no grey zone. They are nested from the whole system down to single files, and every file is covered. This workflow loops until every contract conforms, every clause passes and nothing is uncontracted:
+Every part of the project is documented by a **contract**: readable documentation (tables, diagrams, simple language) that enforces specific files through named **clauses**, each with a declared verification (unit, interface, integration, end-to-end, script or ai-check). Contracts follow one fixed template, checked by `contract-lint`, and leave no grey zone. They form a graph, from roots that document the whole system down to leaves that enforce files, where a contract can have several parents so shared requirements (security, quality) are written once. Every file is covered by a leaf. This workflow loops until every contract conforms, every clause passes and nothing is uncontracted:
 
 ```
 change contracts (grilling) → parity check → tickets → Mr. Wolf resolves code tickets
@@ -16,8 +16,8 @@ change contracts (grilling) → parity check → tickets → Mr. Wolf resolves c
 ## Skills used
 
 - `contract-init`: creates the workspace and its configuration
-- `contract-reverse`: writes detailed contracts from existing code
-- `recontract`: builds the tree from requirements, or reorganises it
+- `contract-reverse`: writes one detailed contract from listed sources (code, documents, contracts)
+- `recontract`: builds the graph from requirements, adds parents above contracts written from code, or reorganises it
 - `contract-refine`: changes a few contracts for a task, and brings off-template, outdated or incomplete contracts back to standard
 - `parity-check`: runs the lint and the verifications, finds uncontracted files and gaps, opens tickets on request
 - `mr-wolf`: resolves code tickets one at a time
@@ -28,7 +28,7 @@ The external skill comes from Matt Pocock's skills and must be installed beforeh
 
 ## Workspace
 
-All state lives in the workspace (contracts, tickets, handoffs, and a README with the configuration and formats) and in the configured tests folder. Every skill reads it from there. Handoffs are always written to `<workspace>/handoff/`.
+All state lives in the workspace (contracts in one flat folder with a generated `INDEX.md`, tickets, handoffs, and a README with the configuration and formats) and in the configured tests folder. Every skill reads it from there. Handoffs are always written to `<workspace>/handoff/`.
 
 ## While the flow is active
 
@@ -60,9 +60,9 @@ Never silently accept a statement that contradicts a contract, and never change 
 ### 0. Locate the workspace
 - Look for `Contract-flow workspace: <path>` in `CLAUDE.md`/`AGENTS.md`, then for a `README.md` containing `<!-- contract-flow-workspace -->`. Show the user what you found and ask them to confirm.
 - If none exists, invoke `contract-init`. Then:
-  - the project has code: invoke `contract-reverse` on the whole contracted domain, then `recontract` only if the user wants to add contracts for requirements not yet in the code
-  - no code yet: invoke `recontract` to build the tree from requirements
-- Then go to step 3 with the whole tree as scope.
+  - the project has code: split the contracted domain into parts a reader can study in one go (with the user), invoke `contract-reverse` on each part, then `recontract` to add the parents above them (and contracts for requirements not yet in the code)
+  - no code yet: invoke `recontract` to build the graph from requirements (or write leaves first and add parents later)
+- Then go to step 3 with the whole graph as scope.
 - If a skill stops because the job belongs to another one (structure vs content vs documenting code), invoke that one.
 
 ### 1. Resume
@@ -93,7 +93,7 @@ Never silently accept a statement that contradicts a contract, and never change 
 ### 5. Resolve code tickets
 - **Invoke:** `mr-wolf` on each `open` ticket with direction `code`, passing the ticket as its document, and tell it:
   - **mode**: the one chosen at step 4
-  - **clauses**: the ticket's contract and every contract it `realizes`, up to the root
+  - **clauses**: the ticket's contract and every contract it `implements`, through every parent, up to the roots
   - **check**: after executing, run the ticket clause's verification, then `parity-check` scoped to the files changed, report only, no tickets
   - **outcome**: set the ticket's `status` to `resolved`; if it ends `blocked`, set `status: rerouted` and `direction: contract` instead
 - **Parallel**, only if the user asked: group tickets so that no two groups share an enforced file or a touched file, and run one `mr-wolf` agent per group. Tickets in the same group run in sequence.

@@ -31,13 +31,13 @@ Explore the project first (folder structure, languages, build and test tools, ex
 ```
 <workspace>/
 ├── README.md      from templates/README.md, Configuration filled in
-├── contracts/
+├── contracts/     one folder, no subfolders
 ├── tickets/
 └── handoff/
 <tests folder>/    created if missing, with contract-lint.py copied from templates/
 ```
 
-Copy `templates/contract-lint.py` into the tests folder.
+Copy `templates/contract-lint.py` into the tests folder. The lint also writes the links block of each contract and `contracts/INDEX.md`.
 
 Add `Contract-flow workspace: <workspace>` to the project's `CLAUDE.md` (create it if missing; also `AGENTS.md` if the project has one) so new sessions find it.
 

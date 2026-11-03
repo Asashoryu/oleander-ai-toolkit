@@ -25,7 +25,7 @@ flowchart LR
 
 1. A **contract** documents one part of the project: what it is for, how it works (shown with diagrams and tables), and the **clauses** that bind the parts it enforces. It is written to be read by a person, not only checked by a tool.
 2. A contract leaves **no grey zone**: everything the parts do, expose, accept, return or must never do is covered by a clause, or declared out of the contract with the reason.
-3. Contracts are nested: the root documents the whole system, its children document its parts, down to single files. Every file of the contracted domain is enforced by some contract.
+3. Contracts form a **graph**: a root documents the whole system, the contracts it enforces document its parts, down to leaves that enforce files. A contract can implement more than one parent, so a shared requirement (security, code quality) is written once. Every file of the contracted domain is enforced by some leaf contract.
 4. Every clause has a **verification**: how it is proven, with a type chosen from a closed list. A clause that cannot be verified is not accepted.
 5. **`contract-lint`** checks that every contract and ticket follows the template. A contract that fails it is sent to `contract-refine` before anything else is checked.
 6. A **parity check** runs the verifications and lists every discrepancy. On request, discrepancies become **tickets**.
@@ -52,10 +52,10 @@ To start or resume, run `/contract-flow`.
 
 | Folder | Contents |
 |---|---|
-| `contracts/` | The contract tree. The children of `x.md` live in the folder `x/` next to it. |
+| `contracts/` | All contracts, in one folder with no subfolders, plus the generated `INDEX.md`. |
 | `tickets/` | One file per ticket, `T-<name>.md`. Closed tickets stay here with their status. |
 | `handoff/` | Session handoffs. The most recent one says what to do next. |
-| tests folder | `contract-lint.py`, plus one verification per clause: `<contract id>/<clause name>.<ext>`. |
+| tests folder | `contract-lint.py`, plus one verification per clause: `<contract id>/<clause name>.<ext>` (not for `covered-by` clauses). |
 
 ## Names
 
@@ -66,32 +66,44 @@ Clauses and tickets are named, never numbered.
 | At most **3 words**, joined by `_`, only `a-z`, `0-9` and `_` | `session_expires`, `T-timeout_too_long` |
 | Written in the language of the project | |
 | Describes what it means, so a reader of another contract understands a reference without opening it | |
+| A **contract ID** is its file name without `.md`, with the same rules: `auth_session`. It is unique in the project. | `contracts/auth_session.md` |
 | A clause name is unique inside its contract; a ticket name is unique in the project | |
 | If a name is taken, reword it, never add a number | |
 | A name never changes once written, unless every reference is updated | |
 
-A clause is referred to as `<contract id>#<clause name>`, e.g. `system/auth/session#session_expires`. A ticket is referred to by its ID, e.g. `T-timeout_too_long`.
+A clause is referred to as `<contract id>#<clause name>`, e.g. `auth_session#session_expires`. A ticket is referred to by its ID, e.g. `T-timeout_too_long`.
 
-## Contract tree
+## Contract graph
 
+All contracts sit in `contracts/`, one file each, with no subfolders. How they relate is written in the header, never in folders.
+
+```mermaid
+flowchart TD
+    sistema[sistema · root] --> auth
+    sistema --> billing
+    sicurezza[sicurezza · root] --> auth_session
+    auth --> auth_session
+    auth_session -.enforces.-> F[src/auth/session.py]
 ```
-contracts/
-├── system.md              id: system (the root)
-└── system/
-    ├── auth.md            id: system/auth
-    ├── auth/
-    │   └── session.md     id: system/auth/session
-    └── billing.md         id: system/billing
-```
 
-- A contract's **ID is its path** inside `contracts/` without `.md`. Its parent is the contract named after the folder it sits in.
-- A contract with no children is a single file; its folder is created with its first child.
-- **New abstraction level.** When a contract grows too large to read in one go (roughly: more than ~300 lines, more than ~15 enforced files, or several parts a reader would want to study separately), it is split: the contract keeps the overview and its children take the detail. The split is always proposed and confirmed, never automatic.
-- **Coverage.** Every file of the contracted domain that is not excluded must be enforced by at least one leaf contract. A file enforced by no contract is an **uncontracted zone**.
+| Kind | `implements` (parents) | `enforces` |
+|---|---|---|
+| **Root** (`root: yes`) | none | contracts or files |
+| **Intermediate** | one or more contracts | contracts only |
+| **Leaf** | one or more contracts | files and folders of the project only |
+
+- **Both fields on both sides.** If `a` implements `b`, then `b` enforces `a`. The lint rejects an edge written on one side only. A contract always enforces something.
+- **Files or contracts, never both.** Paths contain `/` or `.` (folders end with `/`); anything else is a contract ID.
+- **No cycles.** Several parents are allowed. A requirement shared by many contracts (security, quality) is a contract that all of them implement.
+- **Level of abstraction** is not written anywhere: the lint computes it as the distance from the roots (the longest chain upwards) and shows it in `INDEX.md`.
+- **Navigation.** The lint writes, under the title of every contract, a block with its level and links to the contracts it implements and enforces, and it writes `contracts/INDEX.md` with the map, the levels and a table file → leaf contract. Never edit these by hand.
+- **Coverage.** Every file of the contracted domain that is not excluded must be enforced by at least one leaf contract. A file enforced by no leaf is an **uncontracted zone**.
+- **Large contracts.** When a contract grows too large to read in one go (roughly: more than ~300 lines, more than ~15 enforced files, or several parts a reader would want to study separately), it is split: it keeps the overview and new contracts take the detail. The split is always proposed and confirmed, never automatic.
+- **Built in either direction.** Top-down, a parent is written first and names the contracts it will enforce. Bottom-up, leaves are written from existing code or documents, and parents are added above them later; until then the lint reports them as orphans.
 
 ## Contract format
 
-A contract has **five sections in a fixed order** and a **fixed header**. These are the only rigid parts. Inside the sections, write freely, at the abstraction level of the contract, as long as it is shown more than told.
+A contract has **five sections in a fixed order** and a **fixed header** (`name`, `implements`, `enforces`, and `root: yes` on a root). These are the only rigid parts. Inside the sections, write freely, at the abstraction level of the contract, as long as it is shown more than told.
 
 ### Writing rules
 
@@ -110,8 +122,8 @@ A contract has **five sections in a fixed order** and a **fixed header**. These 
 ~~~markdown
 ---
 name: Session handling            # at most 3 words
-realizes: [system/auth]           # contracts this one respects (its parent and any other); empty only on the root
-enforces:                         # everything this contract binds; at least one path
+implements: [auth, sicurezza]     # parent contracts; empty only on a root
+enforces:                         # child contracts (intermediate, root) or files (leaf); never both
   - src/auth/session.py
   - src/auth/store/
 ---
@@ -151,9 +163,9 @@ sequenceDiagram
 
 | Name | Type | Proves | File |
 |---|---|---|---|
-| `no_session_401` | interface | the API answers 401 with no cookie, an invalid one, an expired one | `system/auth/session/no_session_401.py` |
-| `session_expires` | unit | a session idle for 30 min is rejected | `system/auth/session/session_expires.py` |
-| `no_password_logs` | ai-check | no log call can print a password-like value | `system/auth/session/no_password_logs.md` |
+| `no_session_401` | interface | the API answers 401 with no cookie, an invalid one, an expired one | `auth_session/no_session_401.py` |
+| `session_expires` | unit | a session idle for 30 min is rejected | `auth_session/session_expires.py` |
+| `no_password_logs` | ai-check | no log call can print a password-like value | `auth_session/no_password_logs.md` |
 
 ## Notes
 | Term | Meaning |
@@ -168,7 +180,7 @@ Only **Notes** is optional; write it when the text leaves a term unexplained.
 
 - A clause states **one** checkable fact about the enforced files, precise enough that nobody can claim the contract allows what it does not say. High in the tree clauses are coarse ("client and server talk only over HTTP"); at the leaves they are exact.
 - Names follow the rules in **Names**. A removed clause leaves nothing behind.
-- A contract that `realizes` another must not contradict its clauses, and every clause of a parent must be backed by at least one child clause or by the parent's own verification.
+- A contract that `implements` another must not contradict its clauses. Every clause of a contract that enforces contracts is covered by clauses of those contracts (see `covered-by`).
 
 ### Verification
 
@@ -182,13 +194,14 @@ Every clause has **exactly one** row in **Verification**, with a type from this 
 | `end-to-end` | a whole user-visible flow | script | exit code 0 |
 | `script` | any other deterministic check: file structure, grep, static rule | script | exit code 0 |
 | `ai-check` | what no script can decide (readability, intent, absence of something across many files) | check file (`.md`) | the model finds every criterion met, citing path and line |
+| `covered-by` | a clause of a contract that enforces **contracts**: the written clauses of those contracts satisfy it | the clauses that cover it, as `<contract id>#<clause>`, comma separated | the lint finds each clause in an enforced contract, and the model judges they are enough, citing their text |
 
-Use `ai-check` only when no deterministic type can decide the clause.
+Use `ai-check` only when no deterministic type can decide the clause. `covered-by` is the normal type for a root or intermediate contract and is not allowed on a leaf; a root or intermediate clause may use `ai-check` only with a stated reason. A clause shared by many contracts (such as security) is covered by clauses in each contract that implements it.
 
 An `ai-check` file has this shape:
 
 ```markdown
-# system/auth/session#no_password_logs
+# auth_session#no_password_logs
 
 ## Look at
 - src/auth/**, every call to the logger
@@ -211,14 +224,15 @@ A clause with no verification row, or whose file is missing, is a discrepancy.
 
 | Check | Fails when |
 |---|---|
-| Header | `name` missing or over 3 words; `realizes` missing (empty only on the root); `enforces` empty or naming a path that does not exist |
+| Header | `name` missing or over 3 words; `implements` or `enforces` missing; `implements` empty without `root: yes`, or `root: yes` with parents; `enforces` empty, mixing files and contracts, or naming a path or contract that does not exist |
+| Graph | an edge written on one side only; a cycle; a contract in a subfolder; a file name that breaks the rules in **Names** |
 | Sections | the five sections are not present in this order (Notes may be absent) |
 | View | it has no diagram, table or tree |
 | Names | a clause or ticket name breaks the rules in **Names**, or is not unique |
-| Verification | a clause has no row or more than one, a row has no clause, the type is not in the list, or the file does not exist |
+| Verification | a clause has no row or more than one, a row has no clause, the type is not in the list, the file does not exist, `covered-by` is used on a leaf or names a clause that is not in an enforced contract |
 | Tickets | file name and `id` differ, or a required field is missing |
 
-Run it with `<script runner> <tests folder>/contract-lint.py <workspace> <tests folder>`. It does not judge language or completeness: the parity check judges completeness.
+Run it with `<script runner> <tests folder>/contract-lint.py <workspace> <tests folder>`. It also regenerates the links block of every contract and `INDEX.md`. It does not judge language or completeness: the parity check judges completeness.
 
 ## Ticket format
 
@@ -227,7 +241,7 @@ Run it with `<script runner> <tests folder>/contract-lint.py <workspace> <tests 
 id: T-timeout_too_long
 status: open            # open | resolved | rerouted | obsolete
 direction: code         # code | contract | escalate
-contract: system/auth/session
+contract: auth_session
 clause: session_expires
 date: 2026-10-28
 ---
@@ -238,7 +252,7 @@ date: 2026-10-28
 <in plain words: what is wrong and why it matters>
 
 ## Conflict
-- contracts/system/auth/session.md#session_expires: "A session expires after 30 minutes of inactivity."
+- contracts/auth_session.md#session_expires: "A session expires after 30 minutes of inactivity."
 - src/auth/session.py:42: `SESSION_TIMEOUT = 3600`
 
 ## Verification

@@ -21,10 +21,10 @@ A document that captures where a workflow stopped, so a fresh session can resume
 
 ## Learning
 
-**Study folder**
-The folder inside an Obsidian vault (or, with no vault, a folder of Obsidian-format notes) where `learn-with-obsidian` keeps its notes, chosen once. Not the contract-flow workspace.
-**Hub, reference note, source note, record**
-The four note types of `learn-with-obsidian`: a topic's entry point, one atomic concept, one study source, and one session's findings. A topic is never finished.
+**Setup note**
+The note `<Topic> - Setup` written by `studio-setup`: the study place, the source, the report form and the global study rules of one topic.
+**Fact, interpretation, supposition, reasoning**
+The claim types of `stoplight`: green when the source strongly supports it, yellow when it is the user's rework, red when it is strong for the user and weak in the source. A reasoning derives a new claim from existing ones.
 
 ## Contracts
 

@@ -31,7 +31,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-VERSION = 2  # raise it whenever this tool or the README format changes
+VERSION = 3  # raise it whenever this tool or the README format changes
 TYPES = {"unit", "interface", "integration", "end-to-end", "script", "ai-check", "covered-by"}
 SCRIPT_TYPES_NOT = {"ai-check", "covered-by"}
 SECTIONS = ["Purpose", "View", "Clauses", "Verification", "Notes"]
@@ -99,12 +99,13 @@ def sections(body):
     return [(t, "\n".join(c)) for t, c in out]
 
 
-def table_rows(content):
+def table_rows(content, keep_ticks=False):
+    """Rows of the first table, header dropped. Backticks around a cell are removed unless keep_ticks."""
     rows = []
     for line in content.splitlines():
         line = line.strip()
         if line.startswith("|") and not re.match(r"^\|[\s:|-]+\|?$", line):
-            rows.append([c.strip().strip("`") for c in line.strip("|").split("|")])
+            rows.append([c.strip() if keep_ticks else c.strip().strip("`") for c in line.strip("|").split("|")])
     return rows[1:] if rows else []
 
 
@@ -153,9 +154,9 @@ class Ctx:
         cfg = {}
         if readme.exists():
             sec = dict(sections(readme.read_text(encoding="utf-8"))).get("Configuration", "")
-            for row in table_rows(sec):
+            for row in table_rows(sec, keep_ticks=True):
                 if len(row) >= 2:
-                    cfg[row[0].strip("*` ")] = row[1].strip()
+                    cfg[row[0].strip("*` ")] = row[1]
         return cfg
 
     def types(self):

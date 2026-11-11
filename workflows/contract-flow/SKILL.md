@@ -15,7 +15,7 @@ change contracts (grilling) → parity check → tickets → Mr. Wolf resolves c
 
 ## Skills used
 
-- `contract-init`: creates the workspace and its configuration
+- `contract-init`: creates the workspace and its configuration, and updates an older workspace to the current tool and README
 - `contract-reverse`: writes one detailed contract from listed sources (code, documents, contracts)
 - `recontract`: builds the graph from requirements, adds parents above contracts written from code, or reorganises it
 - `contract-refine`: changes a few contracts for a task, and brings off-template, outdated or incomplete contracts back to standard
@@ -69,6 +69,7 @@ The flow is strict because it contracts other workflows, which may be as flexibl
 
 ### 0. Locate the workspace
 - Look for `Contract-flow workspace: <path>` in `CLAUDE.md`/`AGENTS.md`, then for a `README.md` containing `<!-- contract-flow-workspace -->`. Show the user what you found and ask them to confirm.
+- **Tool version.** Run `python3 -I <tests folder>/contract-tools.py --version` and the same on the copy shipped in the `templates/` folder of the `contract-init` skill. If the project has no `contract-tools.py` (an old `contract-lint.py`), the command fails, or the number is lower, say that the workspace is out of date and offer `contract-init` in update mode before anything else. If the user declines, continue, and say that the checks may not match this workflow.
 - If none exists, invoke `contract-init`. Then:
   - the project has code: split the contracted domain into parts a reader can study in one go (with the user), invoke `contract-reverse` on each part, then `recontract` to add the parents above them (and contracts for requirements not yet in the code)
   - no code yet: invoke `recontract` to build the graph from requirements (or write leaves first and add parents later)

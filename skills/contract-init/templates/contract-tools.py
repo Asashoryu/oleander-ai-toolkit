@@ -31,6 +31,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+VERSION = 2  # raise it whenever this tool or the README format changes
 TYPES = {"unit", "interface", "integration", "end-to-end", "script", "ai-check", "covered-by"}
 SCRIPT_TYPES_NOT = {"ai-check", "covered-by"}
 SECTIONS = ["Purpose", "View", "Clauses", "Verification", "Notes"]
@@ -634,7 +635,7 @@ def run_lint(ctx, quiet=False):
             print("ZONE", z, "is not enforced by any leaf contract")
         if zones is None:
             print("NOTE  Contracted domain is not set in the README Configuration: coverage not checked")
-        print(f"{len(ids)} contracts checked, {len(errors)} problems, {len(zones or [])} uncontracted files")
+        print(f"{len(ids)} contracts checked, {len(errors)} problems, {len(zones or [])} uncontracted files (contract-tools {VERSION})")
     return errors, zones or [], fms, level
 
 
@@ -1187,7 +1188,7 @@ def cmd_summary(ctx, a):
     sc = scope_items(ctx)
     print(f"Scope: {len(sc)} entries" + (": " + ", ".join(sc) if sc else ""))
     orphans = [c for c, fm in fms.items() if fm.get("root") != "yes" and not fm.get("implements")]
-    print(f"Lint: {len(errors)} problems, {len(zones)} uncontracted files, {len(orphans)} orphans")
+    print(f"Lint: {len(errors)} problems, {len(zones)} uncontracted files, {len(orphans)} orphans (contract-tools {VERSION})")
     open_work = by["open"] or by["rerouted"]
     if errors or zones or open_work:
         print("State: NOT STABLE")
@@ -1222,6 +1223,7 @@ def cmd_handoff(ctx, a):
 
 def build_parser():
     ap = argparse.ArgumentParser(prog="contract-tools")
+    ap.add_argument("--version", action="version", version=f"contract-tools {VERSION}")
     ap.add_argument("--workspace")
     ap.add_argument("--root", default=".")
     sub = ap.add_subparsers(dest="cmd", required=True)

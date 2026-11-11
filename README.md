@@ -5,7 +5,7 @@ Skills and workflows for Claude Code. Terms are defined in [CONTEXT.md](CONTEXT.
 | Name | Type | Purpose |
 |---|---|---|
 | `contract-flow` | workflow | Keeps code and contracts in 1:1 parity. Run with `/contract-flow`. |
-| `contract-init` | skill | Creates the contract-flow workspace. |
+| `contract-init` | skill | Creates, configures and updates the contract-flow workspace. |
 | `contract-reverse` | skill | Writes one detailed contract from listed sources (code, documents, contracts). |
 | `recontract` | skill | Builds the contract graph from requirements, adds parents above contracts written from code, or reorganises it. |
 | `contract-refine` | skill | Changes a few contracts for a task. |

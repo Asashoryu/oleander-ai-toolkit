@@ -21,7 +21,7 @@ Explore the project first (folder structure, languages, build and test tools, ex
 
 1. **Workspace location.** Where contracts, tickets and handoffs go.
 2. **Tests folder.** Where verification scripts and check files go: inside the workspace, or in the project's own test folder.
-3. **Script runner.** How verification scripts are run, matching what the project already uses (e.g. `bash`, `pwsh`, `python`, `node`, `npm test --`). The lint is a Python script (`python3 -I`), so Python 3 is needed for it whatever the runner.
+3. **Script runner.** How verification scripts are run, matching what the project already uses (e.g. `bash`, `pwsh`, `python`, `node`, `npm test --`). `contract-tools.py` is a Python script (`python3 -I`), so Python 3 is needed for it whatever the runner.
    **Extra verification types** and **hooks** (CI, pre-commit) where verifications should also run: ask, suggesting none if the project has neither.
 4. **Contracted domain.** Which paths are governed by contracts, and which are excluded (generated code, vendored libraries, build output…).
 5. **Existing documentation.** List what you found (specs, ADRs, PRDs, issue folders…) and ask what each contains and whether it should later be absorbed into contracts or left alone. Never move or delete it here.
@@ -34,10 +34,10 @@ Explore the project first (folder structure, languages, build and test tools, ex
 ├── contracts/     one folder, no subfolders
 ├── tickets/
 └── handoff/
-<tests folder>/    created if missing, with contract-lint.py copied from templates/
+<tests folder>/    created if missing, with contract-tools.py copied from templates/
 ```
 
-Copy `templates/contract-lint.py` into the tests folder. The lint also writes the links block of each contract and `contracts/INDEX.md`.
+Copy `templates/contract-tools.py` into the tests folder. Fill the **Configuration** table exactly as the tool reads it: paths in backticks (folders end in `/`), the script runner as one command in backticks, `none` where nothing applies. Then run `python3 -I <tests folder>/contract-tools.py lint` from the project root to check the setup.
 
 Add `Contract-flow workspace: <workspace>` to the project's `CLAUDE.md` (create it if missing; also `AGENTS.md` if the project has one) so new sessions find it.
 

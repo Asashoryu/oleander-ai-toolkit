@@ -17,7 +17,7 @@ The input is one of:
 - a **requirement** or statement from the user (new, changed or removed behaviour)
 - one or more **tickets** with direction `contract`, `escalate` or status `rerouted`
 - an outdated contract found to disagree with code that is right
-- a contract that **fails `contract-lint`**, or has a **gap** (something the enforced files do or expose that no clause covers), reported by a parity check
+- a contract that **fails the lint (`contract-tools lint`)**, or has a **gap** (something the enforced files do or expose that no clause covers), reported by a parity check
 
 Find the contracts involved and read them with the files they enforce. For an `escalate` ticket, start from the contracts it `implements` and keep climbing through every parent while the problem is really decided higher up.
 
@@ -35,10 +35,10 @@ Work from the highest affected contract downwards, through every parent branch. 
 ## 3. Write
 
 - Edit the contracts following the contract format and its writing rules: update the prose, tables and diagrams so the contract still documents the files it enforces completely, mostly through diagrams and tables, in simple words. A contract that was off-template is rewritten into the template (fixed header, then Purpose, View, Clauses, Verification, Notes), proposing a name for every clause and getting it confirmed. Never rename a surviving clause without updating every reference to it.
-- Create, change or delete the verification files of the clauses touched, and keep the Verification rows in step.
-- Keep `implements` and `enforces` accurate on both sides of every edge, and the `covered-by` rows of the parents of any clause you changed.
-- Run `contract-lint.py` (see **Lint** in the README); it rewrites the links blocks and `INDEX.md`. Do not finish while a contract you touched fails it. A contract written in an older format (`realizes`, nested folders) fails the lint: bring it to the current template, and flag a move out of a subfolder to the user.
-- For each input ticket, append a log line saying what changed, and set it to `resolved` if the contract change removes the discrepancy. Set to `obsolete` any other open ticket whose clause no longer exists.
+- **Structured parts go through `contract-tools`, never by hand**: `clause add|rename|remove`, `edge`, `files`, `root`, `contract new|rename`. You write only the prose (Purpose, View, Notes). A clause added for a gap is created with `clause add ... --ticket <name>`, which makes a stub verification that fails and opens its ticket at once. Write the real verification into the stub afterwards.
+- Keep the `covered-by` rows of the parents of any clause you changed correct (`clause add` on the parent, or `clause remove` and add).
+- Run `contract-tools lint` (see **Lint** in the README); it rewrites the links blocks and `INDEX.md`. Do not finish while a contract you touched fails it. Add each contract you changed to the scope: `contract-tools scope add <id>`. A contract written in an older format (`realizes`, nested folders) fails the lint: bring it to the current template, and flag a move out of a subfolder to the user.
+- For each input ticket, use `contract-tools ticket log` to say what changed. If the contract change removes the discrepancy, `ticket status <id> resolved`; if the clause is now right and the code must follow, `ticket reopen` then `ticket direction <id> code`. `ticket sweep` closes tickets whose clause no longer exists.
 
 ## 4. Hand over
 

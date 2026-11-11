@@ -19,7 +19,7 @@ Find the workspace through the `Contract-flow workspace:` line in `CLAUDE.md`/`A
 
 ## Write the file
 
-Path: `<workspace>/handoff/<YYYY-MM-DD-HHMM>.md`. Never overwrite an earlier handoff: the most recent file is the one read on resume.
+Run `contract-tools handoff --stopped-at "<step and number>" --why "<user stopped | project stable | blocked>" --decisions "<...>" --next "<...>" --skills "<...>"` from the project root. The tool writes `<workspace>/handoff/<YYYY-MM-DD-HHMM>.md` (never overwriting an earlier one: the most recent file is the one read on resume) and fills Scope from `scope.txt` and Tickets from the ticket files itself. You supply only the stopped-at, decisions, next and skills texts. The sections it writes, in order:
 
 Sections, in this order:
 

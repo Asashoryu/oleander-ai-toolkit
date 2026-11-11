@@ -27,9 +27,9 @@ flowchart LR
 2. A contract leaves **no grey zone**: everything the parts do, expose, accept, return or must never do is covered by a clause, or declared out of the contract with the reason.
 3. Contracts form a **graph**: a root documents the whole system, the contracts it enforces document its parts, down to leaves that enforce files. A contract can implement more than one parent, so a shared requirement (security, code quality) is written once. Every file of the contracted domain is enforced by some leaf contract.
 4. Every clause has a **verification**: how it is proven, with a type chosen from a closed list. A clause that cannot be verified is not accepted.
-5. **`contract-lint`** checks that every contract and ticket follows the template. A contract that fails it is sent to `contract-refine` before anything else is checked.
-6. A **parity check** runs the verifications and lists every discrepancy. On request, discrepancies become **tickets**.
-7. The project is **stable** when every contract passes the lint, every clause passes and no file is uncontracted.
+5. **`contract-tools`** is the one script that does the mechanical work: it lints the contracts and tickets, runs the verifications, and writes everything structured (see **contract-tools**). A contract that fails the lint is sent to `contract-refine` before anything else is checked.
+6. A **parity check** runs the verifications and lists every discrepancy. **Every discrepancy becomes a ticket the moment it is found**; nothing is left in a message.
+7. The project is **stable** when every contract passes the lint, every clause passes, no file is uncontracted and no ticket is open or rerouted.
 
 To start or resume, run `/contract-flow`.
 
@@ -41,9 +41,9 @@ To start or resume, run `/contract-flow`.
 |---|---|
 | Workspace | {{this folder}} |
 | Tests folder | {{where verification scripts and check files live}} |
-| Script runner | {{how scripts are run, e.g. `bash`, `pwsh`, `python`, `npm test --`}} |
-| Contracted domain | {{paths governed by contracts}} |
-| Excluded | {{paths out of scope, never reported as uncontracted, or "none"}} |
+| Script runner | {{how scripts are run, one command in backticks, e.g. `bash`, `pwsh`, `python3`, `npm test --`}} |
+| Contracted domain | {{paths governed by contracts, each in backticks, folders ending in `/`}} |
+| Excluded | {{paths out of scope, each in backticks, never reported as uncontracted, or "none"}} |
 | Extra verification types | {{types added to the closed list below, or "none"}} |
 | Hooks | {{where verifications also run, e.g. CI, pre-commit, or "none"}} |
 | Existing documentation | {{docs that already exist and what they contain}} |
@@ -55,7 +55,8 @@ To start or resume, run `/contract-flow`.
 | `contracts/` | All contracts, in one folder with no subfolders, plus the generated `INDEX.md`. |
 | `tickets/` | One file per ticket, `T-<name>.md`. Closed tickets stay here with their status. |
 | `handoff/` | Session handoffs. The most recent one says what to do next. |
-| tests folder | `contract-lint.py`, plus one verification per clause: `<contract id>/<clause name>.<ext>` (not for `covered-by` clauses). |
+| `scope.txt` (in the workspace) | The contracts and files touched in this flow, one per line. Written only by `contract-tools scope`. |
+| tests folder | `contract-tools.py`, plus one verification per clause: `<contract id>/<clause name>.<ext>` (not for `covered-by` clauses). |
 
 ## Names
 
@@ -220,21 +221,50 @@ A clause with no verification row, or whose file is missing, is a discrepancy.
 
 ### Lint
 
-`contract-lint.py` in the tests folder checks the rigid parts and nothing else:
+`contract-tools lint` checks everything that a script can decide, and nothing else:
 
 | Check | Fails when |
 |---|---|
 | Header | `name` missing or over 3 words; `implements` or `enforces` missing; `implements` empty without `root: yes`, or `root: yes` with parents; `enforces` empty, mixing files and contracts, or naming a path or contract that does not exist |
 | Graph | an edge written on one side only; a cycle; a contract in a subfolder; a file name that breaks the rules in **Names** |
-| Sections | the five sections are not present in this order (Notes may be absent) |
+| Sections | the five sections are not present in this order (Notes may be absent), or one still holds `_to be written_` |
 | View | it has no diagram, table or tree |
 | Names | a clause or ticket name breaks the rules in **Names**, or is not unique |
 | Verification | a clause has no row or more than one, a row has no clause, the type is not in the list, the file does not exist, `covered-by` is used on a leaf or names a clause that is not in an enforced contract |
-| Tickets | file name and `id` differ, or a required field is missing |
+| Stale files | a file in `<tests folder>/<contract id>/` that no Verification row cites |
+| References | a markdown link to a file or heading that does not exist; a path in backticks that does not exist; a `<contract id>#<clause>` that does not exist; a `file:line` whose line is past the end of the file. Code blocks are not checked. |
+| Size | a contract over 300 lines or over 15 enforced entries: propose a new level |
+| Coverage | a file of the **Contracted domain** (not **Excluded**) that no leaf contract enforces, printed as `ZONE` |
+| Tickets | see **Ticket format** |
 
-Run it with `<script runner> <tests folder>/contract-lint.py <workspace> <tests folder>`. It also regenerates the links block of every contract and `INDEX.md`. It does not judge language or completeness: the parity check judges completeness.
+Run it from the project root: `<script runner> <tests folder>/contract-tools.py lint`. It also regenerates the links block of every contract and `INDEX.md`, so every file a contract enforces and every verification file is a link, and `INDEX.md` links each file to its leaf contracts. It does not judge language or completeness: the parity check judges completeness.
+
+## contract-tools
+
+One script, `contract-tools.py` in the tests folder, run from the project root. It finds the workspace through the `Contract-flow workspace:` line in `CLAUDE.md` or `AGENTS.md`, and reads the **Configuration** table above (script runner, domain, exclusions, extra types).
+
+**Agents write prose only**: Purpose, View, Notes, and the text of tickets. Everything structured goes through the tool, and every command that edits ends by running the lint on the result, so a mistake is reported at once.
+
+| Command | What it does |
+|---|---|
+| `lint` | The checks above; regenerates links blocks and `INDEX.md` |
+| `verify [--contract ID]` | Runs every scripted verification; `ai-check` and `covered-by` are reported as `JUDGE`, a stub as `FAIL` |
+| `contract new <id> --name N --implements a,b --enforces x` | Creates a skeleton with `_to be written_` sections and writes the other side of each edge |
+| `contract rename <old> <new>` | Renames the file and the tests folder, and every reference in contracts and tickets |
+| `edge add\|remove <parent> <child>` | Writes `enforces` on the parent and `implements` on the child |
+| `files add\|remove <contract> <path>...` | Edits the `enforces` of a leaf |
+| `root set\|unset <contract>` | Marks or unmarks a root |
+| `clause add <contract> <name> --text T --type TYPE [--proves P] [--file F] [--covers c#k] [--ticket NAME]` | Adds the Clauses row and the Verification row, creates a **stub that fails** for a script or `ai-check` file, and with `--ticket` opens the ticket on the new clause |
+| `clause rename <contract> <old> <new>` | Renames the rows, the verification file and every `<contract>#<old>` |
+| `clause remove <contract> <name>` | Removes the rows and the file, and makes an open ticket on it `obsolete` |
+| `ticket new\|log\|status\|direction\|reopen\|list\|sweep` | The only way to write tickets (see **Ticket format**) |
+| `scope add\|clear\|list` | Keeps `scope.txt` |
+| `summary` | Tickets by status and direction, scope, lint result, and whether anything is open |
+| `handoff --stopped-at S [--why W --decisions D --next N --skills K]` | Writes the handoff file with the fixed sections, scope and tickets filled in |
 
 ## Ticket format
+
+A ticket is created and changed **only with `contract-tools ticket`**, which writes the front matter and the log with the time. The agent writes the text of the four sections.
 
 ```markdown
 ---
@@ -243,7 +273,6 @@ status: open            # open | resolved | rerouted | obsolete
 direction: code         # code | contract | escalate
 contract: auth_session
 clause: session_expires
-date: 2026-10-28
 ---
 
 # Sessions expire after one hour instead of 30 minutes
@@ -252,8 +281,8 @@ date: 2026-10-28
 <in plain words: what is wrong and why it matters>
 
 ## Conflict
-- contracts/auth_session.md#session_expires: "A session expires after 30 minutes of inactivity."
-- src/auth/session.py:42: `SESSION_TIMEOUT = 3600`
+- [auth_session](../contracts/auth_session.md): "A session expires after 30 minutes of inactivity."
+- `src/auth/session.py:42`: `SESSION_TIMEOUT = 3600`
 
 ## Verification
 <script or check run, and what it showed>
@@ -262,6 +291,33 @@ date: 2026-10-28
 code: the contract reflects the agreed requirement; the constant is wrong.
 
 ## Log
-<!-- appended by whoever works on the ticket, newest last -->
-- 2026-10-28 · parity-check · opened
+- 2026-10-28T14:32 · parity-check · opened · code: verification fails
+- 2026-10-28T15:10 · mr-wolf · status_changed · open -> resolved: constant set to 1800
 ```
+
+**One ticket per clause**, for the whole life of the project. A clause that fails again reopens its ticket; `ticket new` on a clause that already has one reopens it (or says it is open) instead of creating a second.
+
+**Log.** One line per event: `- <YYYY-MM-DDTHH:MM> · <who> · <event> · <detail>`, newest last, never edited.
+
+| Event | Detail |
+|---|---|
+| `opened` | `<direction>: <reason>`. Always the first line, and only there. |
+| `direction_changed` | `<from> -> <to>: <reason>` |
+| `status_changed` | `<from> -> <to>: <reason>` |
+| `reopened` | `<reason>`; the status becomes `open` |
+| `note` | free text |
+
+**States.**
+
+| From | To | By |
+|---|---|---|
+| `open` | `resolved`, `rerouted`, `obsolete` | `ticket status` |
+| `rerouted` | `resolved`, `obsolete` | `ticket status`; or `open` by `ticket reopen` |
+| `resolved`, `obsolete` | `open` | `ticket reopen` |
+
+**Sweep.** `ticket sweep` runs at the start of every parity check:
+- an `open` or `rerouted` ticket whose clause or contract no longer exists becomes `obsolete`;
+- an `open` ticket with direction `code` whose scripted verification now passes becomes `resolved`;
+- a `resolved` ticket whose scripted verification fails again is reopened, with direction `code`.
+
+**The lint** fails a ticket when: the file name, `id`, `status` or `direction` are off; the sections are not Problem, Conflict, Verification, Proposed direction, Log, or one is still `_to be written_`; the log is empty, a line does not follow the form, the first event is not `opened`, times go backwards, a step is not allowed by the table above or does not start from the state the log is in, a change has no reason, or `status` and `direction` do not match where the log ends; a second ticket exists for the same clause; an `open` ticket points at a clause that no longer exists; a reference in its text does not resolve.

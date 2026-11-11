@@ -38,10 +38,10 @@ Invoke the `mattpocock-skills:grilling` skill on the proposal. Settle the roots 
 
 ## 4. Write
 
-- Create or move the contract files following the contract format and its writing rules. Write each contract in full in the fixed template (header with `implements` and `enforces` on both sides of every edge, Purpose, View, Clauses, Verification, Notes), shown with tables and diagrams, in simple words, not as a list of headings: a thin contract is a defect.
-- Create the verification file for every new clause in the tests folder. Scripts for code that does not exist yet will fail; that is expected and becomes a ticket.
-- When reorganising: keep the names of surviving clauses, move their verification files with them, and update every `enforces`, `implements`, reference (`<contract id>#<clause>`) and ticket that refers to a moved or renamed contract. Set every open ticket on a removed clause to `obsolete`, with a log line.
-- Run `contract-lint.py` (see **Lint** in the README); it rewrites the links blocks and `INDEX.md`. Do not finish while it reports a problem (orphans are expected only while building bottom-up, and are listed in the hand-over).
+- Create contracts with `contract-tools contract new`, and change the graph only with `contract-tools edge|files|root|contract rename|clause`, never by editing headers or tables by hand. Write each contract's prose following the contract format and its writing rules. Write each contract in full in the fixed template (header with `implements` and `enforces` on both sides of every edge, Purpose, View, Clauses, Verification, Notes), shown with tables and diagrams, in simple words, not as a list of headings: a thin contract is a defect.
+- Add every new clause with `contract-tools clause add`; for code that does not exist yet use `--ticket <name>`, which creates the failing stub verification and opens its ticket at once. Write the real verification into the stub.
+- When reorganising: keep the names of surviving clauses, move their verification files with them, and the tool updates every reference (`<contract id>#<clause>`), ticket and verification path on `contract rename` and `clause rename`. `clause remove` makes an open ticket on the clause `obsolete`. Add every contract touched to the scope.
+- Run `contract-tools lint` (see **Lint** in the README); it rewrites the links blocks and `INDEX.md`. Do not finish while it reports a problem (orphans are expected only while building bottom-up, and are listed in the hand-over).
 
 ## 5. Hand over
 

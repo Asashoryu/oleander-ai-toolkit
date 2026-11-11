@@ -38,6 +38,7 @@ Do not grill on content: the sources already answer that. Ask only about what th
 ## 3. Write the contract
 
 Following the contract format (fixed header with `implements` and `enforces`, then Purpose, View, Clauses, Verification, Notes):
+- Create the skeleton with `contract-tools contract new <id> --name <name> --implements <parents> --enforces <files>`; it writes both sides of every edge. Write the prose; add each clause with `clause add` (no `--ticket`: the code already exists).
 - First list, from step 1, every responsibility, entry point, input, output, error case and configuration at this contract's level. This list is the grey-zone check: each item gets a clause, or is declared out of the contract with the reason.
 - **Purpose**: 2-4 lines.
 - **View**: document everything collected at this level, shown rather than told: `mermaid` diagrams for flows, sequences, states and dependencies; tables for fields, parameters, options and interface; trees for layouts. Simple words. Few entries, each useful.
@@ -46,7 +47,7 @@ Following the contract format (fixed header with `implements` and `enforces`, th
 - **Notes**: only if a term, function or name is used and not explained.
 - If it implements existing parents, add this contract to the `enforces` of each of them, and cover any of their clauses it satisfies (`covered-by`), so both sides of the edge are written.
 
-Where the code looks wrong (a likely bug, dead code, an inconsistency), write what it does, then list it for the user at the end. Never silently "fix" the contract to describe what it should do.
+Where the code looks wrong (a likely bug, dead code, an inconsistency), write what it does, then open a ticket for it at once (`contract-tools ticket new`), so it cannot be forgotten, and list the tickets for the user at the end. Never silently "fix" the contract to describe what it should do.
 
 ## 4. Write the verifications
 
@@ -56,7 +57,7 @@ For each clause, create its file in the tests folder (`<contract id>/<clause nam
 
 Run every script once. Report the ones that fail: either the script is wrong (fix it) or the code breaks its own clause (list it as a likely bug).
 
-Then run `contract-lint.py` (see **Lint** in the README). Do not hand over while it reports a problem other than an orphan.
+Then run `contract-tools lint` (see **Lint** in the README). Do not hand over while it reports a problem other than an orphan. Add the contract to the scope: `contract-tools scope add <id>`.
 
 ## 5. Hand over
 

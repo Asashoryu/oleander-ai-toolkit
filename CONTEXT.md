@@ -72,7 +72,11 @@ The optional last section of a contract, listing each term, function or name use
 **Reverse contracting**
 Writing one contract from listed sources (code, documents, contracts): every source read, every responsibility documented, every clause given a verification. Repeated for each part of a repository, then grouped under parents by `recontract`.
 **Statement check**
-While contract-flow is active, every statement the user makes about how the system works or should work is compared with the contracts and with the code they enforce. If the code agrees with the contract, the user is corrected; if it agrees with the user, the contract is outdated and gets refined; otherwise the user decides. Missing coverage is announced as an uncontracted zone. Any difference found, accepted or postponed, becomes a ticket at once.
+The procedure that runs, while contract-flow is active, before the agent answers any question or request about the system: search the contracts by quote (`find`, `which-contracts`), then compare the request with the quotes found and with the code they enforce, with one of three outcomes (`compatible`, `contradicts`, `undecidable`). If no contract covers it, the agent stops and announces an uncontracted zone. Any difference found, accepted or postponed, becomes a ticket at once.
+**Quote**
+The exact text of a clause, printed by `contract-tools quote` as a block (`quote — contract#clause (path:line)` and the text under `>`). The only way the agent shows what a contract says: never from memory, never paraphrased. The lint rejects a quote in a document whose text differs from the contract.
+**Position header**
+The block printed by `contract-tools header` at the start of every agent reply about the system: flow, step, contract and clause with `path:line`, ticket, scope, and the files treated with their lines and why. Built from the flow state (`flow.json`) and the contracts, never written by the agent. Without it the agent gives no answer on the merits and makes no change to the code.
 **Parity**
 The state where a contract and what it covers agree 1:1. Checked contract ↔ the contracts it enforces (their written clauses cover its clauses) and, for leaf contracts, contract ↔ code. Gaps, outdated contracts and off-template contracts are not parity problems: they are solved by refinement. A higher-level contract cares only that its own statements hold, not how lower levels achieve them; verifying it may still require inspecting everything beneath it.
 

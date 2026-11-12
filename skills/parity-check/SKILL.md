@@ -11,6 +11,10 @@ Finds where contracts and the files they enforce disagree. It never fixes anythi
 
 Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Names**, **Contract graph**, **Contract format** (with **Verification** and **Lint**), **contract-tools** and **Ticket format** sections are binding.
 
+## Quotes
+
+When you say what a contract says, use `contract-tools quote <contract>#<clause>` and paste its output; never paraphrase it or write it from memory. Look contracts up with `contract-tools find` and `which-contracts` (exit code 3 and `UNCONTRACTED ZONE` mean no contract covers it: stop, see **No contract covers it** in the contract-flow workflow). Names are words, never codes.
+
 ## 1. Decide the scope
 
 The scope is given by whoever invokes the check:
@@ -58,7 +62,7 @@ For each conforming contract in scope:
 
 ## 6. Report and tickets
 
-**Every discrepancy becomes a ticket now, without asking.** For each clause that failed or was judged failing, run `contract-tools ticket new <name> <contract> <clause> --direction <d> --reason "<why>"` with `--problem`, `--conflict`, `--verification` and `--proposal` filled in plain words (the conflicting contract text and the enforced file with path and line, the verification run and its output). The name follows the **Names** rules. If the clause already has a ticket, the tool reopens it or says it is open: never a second one. The direction is `code` (the files must change), `contract` or `escalate` (decided higher in the graph). The user may change a direction afterwards (`ticket direction`) or close a ticket as `obsolete` with a reason (`ticket status`), but a discrepancy is never left without a ticket. If the invoker asked for a report only, say so in the report and open nothing.
+**Every discrepancy becomes a ticket now, without asking.** For each clause that failed or was judged failing, run `contract-tools ticket new <name> <contract> <clause> --direction <d> --reason "<why>"` with `--problem`, `--conflict`, `--verification` and `--proposal` filled in plain words (the conflicting contract text as a quote, and the enforced file with path and line, the verification run and its output). The name follows the **Names** rules. If the clause already has a ticket, the tool reopens it or says it is open: never a second one. The direction is `code` (the files must change), `contract` or `escalate` (decided higher in the graph). The user may change a direction afterwards (`ticket direction`) or close a ticket as `obsolete` with a reason (`ticket status`), but a discrepancy is never left without a ticket. If the invoker asked for a report only, say so in the report and open nothing.
 
 A gap (something the files do that no clause covers) has no clause to hang a ticket on: send it to `contract-refine`, which adds the clause with `clause add --ticket`, creating a failing stub and its ticket together.
 

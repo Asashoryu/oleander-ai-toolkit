@@ -17,12 +17,19 @@ Commands
     scope add|clear|list          the contracts and files touched in this flow (scope.txt)
     summary                       the state of the flow in a few lines
     handoff                       write the handoff file
+    quote C#K | quote --all C     print the exact text of a clause (or of all of a contract) as a quote
+    find WORDS...                 search contracts and tickets, results printed as quotes
+    which-contracts PATH... | --changed   the contracts that govern a file, as quotes (exit 3: uncontracted zone)
+    check-quotes [FILE...]        every quote block must match its contract word for word
+    flow start|step|set|stop      the position of the flow, kept in flow.json
+    header --file P:L --why W     print the position header, built from flow.json and the contracts
 
 Agents write prose (Purpose, View, Notes, ticket text). Everything structured goes through
 this tool; every command that edits ends by running the lint on the result.
 Exit code 0 when everything conforms, 1 otherwise. Standard library only.
 """
 import argparse
+import json
 import os
 import re
 import shlex
@@ -31,7 +38,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-VERSION = 3  # raise it whenever this tool or the README format changes
+VERSION = 4  # raise it whenever this tool or the README format changes
 TYPES = {"unit", "interface", "integration", "end-to-end", "script", "ai-check", "covered-by"}
 SCRIPT_TYPES_NOT = {"ai-check", "covered-by"}
 SECTIONS = ["Purpose", "View", "Clauses", "Verification", "Notes"]
@@ -628,6 +635,7 @@ def run_lint(ctx, quiet=False):
     if ids:
         write_links(ctx, fms, level)
     lint_tickets(ctx, fms, ids, errors)
+    errors += check_quotes(ctx, quote_files(ctx))
     zones = coverage(ctx, fms)
     if not quiet:
         for e in errors:
@@ -1220,6 +1228,300 @@ def cmd_handoff(ctx, a):
     return 0
 
 
+# --------------------------------------------------------------------------- quotes, search, position header
+
+QUOTE_HEAD = re.compile(r"^quote — ([a-z0-9_]+)#([a-z0-9_]+) \(([^)\s]+):(\d+)\)\s*$")
+NOT_GOVERNED = 3  # exit code: no contract governs the file or the words
+
+
+def clause_info(ctx, cid, clause):
+    """(text, line) of a clause row in a contract's Clauses table, or None. Line is 1-based."""
+    p = ctx.cpath(cid)
+    if not p.exists():
+        return None
+    lines = p.read_text(encoding="utf-8").split("\n")
+    s, e = section_span(lines, "Clauses")
+    if s is None:
+        return None
+    for i in range(s, e):
+        m = re.match(r"^\|\s*`?([a-z0-9_]+)`?\s*\|\s*(.*?)\s*\|?\s*$", lines[i].strip())
+        if m and m.group(1) == clause:
+            return m.group(2), i + 1
+    return None
+
+
+def format_quote(ctx, cid, clause):
+    text, line = clause_info(ctx, cid, clause)
+    return f"quote — {cid}#{clause} ({rel(ctx.cpath(cid), ctx.root)}:{line})\n> {text}"
+
+
+def quote_files(ctx):
+    files = list(ctx.base.glob("*.md")) if ctx.base.is_dir() else []
+    files += ticket_files(ctx)
+    hd = ctx.ws / "handoff"
+    files += sorted(hd.glob("*.md")) if hd.is_dir() else []
+    if (ctx.ws / "README.md").exists():
+        files.append(ctx.ws / "README.md")
+    return [f for f in files if f.name != "INDEX.md"]
+
+
+def check_quotes_in(ctx, path, errors):
+    """Every `quote — c#k (path:line)` block outside code blocks must match the contract word for word."""
+    lines = path.read_text(encoding="utf-8").split("\n")
+    in_code, label = False, rel(path, ctx.root)
+    for i, line in enumerate(lines):
+        if line.startswith("```") or line.startswith("~~~"):
+            in_code = not in_code
+            continue
+        m = None if in_code else QUOTE_HEAD.match(line.strip())
+        if not m:
+            continue
+        cid, clause, fpath, _ = m.groups()
+        loc = f"{label}:{i + 1}"
+        nxt = lines[i + 1] if i + 1 < len(lines) else ""
+        if not nxt.startswith("> "):
+            errors.append(f"{loc}: quote of {cid}#{clause} has no `> ` line under it")
+            continue
+        info = clause_info(ctx, cid, clause)
+        if info is None:
+            errors.append(f"{loc}: quote of a clause that does not exist: {cid}#{clause}")
+            continue
+        if not (ctx.root / fpath).exists():
+            errors.append(f"{loc}: quote names a path that does not exist: {fpath}")
+        quoted, want = nxt[2:].strip(), info[0]
+        ok = want.startswith(quoted[:-1]) and len(quoted) > 1 if quoted.endswith("…") else quoted == want
+        if not ok:
+            errors.append(f"{loc}: the quoted text of {cid}#{clause} is not what the contract says (contract line {info[1]}); use `contract-tools quote {cid}#{clause}`")
+
+
+def check_quotes(ctx, files):
+    errors = []
+    for f in files:
+        check_quotes_in(ctx, f, errors)
+    return errors
+
+
+def cmd_check_quotes(ctx, a):
+    files = [Path(f).resolve() for f in a.files] if a.files else quote_files(ctx)
+    errors = check_quotes(ctx, files)
+    for e in errors:
+        print("FAIL", e)
+    print(f"{len(files)} files checked, {len(errors)} quote problems")
+    return 1 if errors else 0
+
+
+def cmd_quote(ctx, a):
+    if a.all:
+        fm = load_all(ctx)[1].get(a.ref)
+        if fm is None:
+            print(f"no contract {a.ref}")
+            return 1
+        print("\n\n".join(format_quote(ctx, a.ref, c) for c in fm.get("_clauses", [])))
+        return 0
+    m = re.match(r"^([a-z0-9_]+)#([a-z0-9_]+)$", a.ref)
+    if not m or clause_info(ctx, m.group(1), m.group(2)) is None:
+        print(f"no clause {a.ref}: write it as <contract>#<clause>")
+        return 1
+    print(format_quote(ctx, m.group(1), m.group(2)))
+    return 0
+
+
+def cmd_find(ctx, a):
+    terms = {w for w in re.findall(r"\w+", " ".join(a.words).lower()) if len(w) >= 4}
+    if not terms:
+        sys.exit("give at least one word of 4 letters or more")
+
+    def score(s):
+        low = s.lower()
+        return sum(1 for t in terms if t in low)
+
+    hits = []  # (score, order, text)
+    for cid in ctx.contract_ids():
+        p = ctx.cpath(cid)
+        lines = p.read_text(encoding="utf-8").split("\n")
+        for sec in ("Clauses", "Purpose", "Notes"):
+            s, e = section_span(lines, sec)
+            if s is None:
+                continue
+            for i in range(s, e):
+                line = lines[i].strip()
+                if not line or line.startswith(("|---", "| Name")) or score(line) == 0:
+                    continue
+                if sec == "Clauses":
+                    m = re.match(r"^\|\s*`?([a-z0-9_]+)`?\s*\|", line)
+                    if m and clause_info(ctx, cid, m.group(1)):
+                        hits.append((score(line), 1, format_quote(ctx, cid, m.group(1))))
+                else:
+                    hits.append((score(line), 2, f"{sec.lower()} — {cid} ({rel(p, ctx.root)}:{i + 1})\n> {line}"))
+    for f in ticket_files(ctx):
+        for i, line in enumerate(f.read_text(encoding="utf-8").split("\n")):
+            if line.strip() and score(line) and not line.startswith(("id:", "- 20")):
+                hits.append((score(line), 3, f"ticket — {f.stem} ({rel(f, ctx.root)}:{i + 1})\n> {line.strip()}"))
+    if not hits:
+        print("UNCONTRACTED ZONE: no contract or ticket mentions these words")
+        return NOT_GOVERNED
+    hits.sort(key=lambda h: (-h[0], h[1]))
+    print("\n\n".join(h[2] for h in hits[:a.limit]))
+    if len(hits) > a.limit:
+        print(f"\n({len(hits) - a.limit} more hits; raise --limit)")
+    return 0
+
+
+def norm_path(ctx, raw):
+    raw = re.sub(r":\d+(-\d+)?$", "", raw)
+    p = Path(raw)
+    p = p.resolve() if p.is_absolute() else (ctx.root / p).resolve()
+    try:
+        return p.relative_to(ctx.root).as_posix()
+    except ValueError:
+        return raw
+
+
+def in_domain(ctx, f):
+    domain = ctx.paths_setting("Contracted domain")
+    if not domain:
+        return True
+    excluded = (ctx.paths_setting("Excluded") or []) + [rel(ctx.ws, ctx.root), rel(ctx.tests, ctx.root)]
+    return any(under(f, d) for d in domain) and not any(under(f, x) for x in excluded)
+
+
+def governors(ctx, fms, f):
+    """Leaf contracts that enforce a file, or files inside a folder, or the folder containing it."""
+    return sorted(cid for cid, fm in fms.items() if fm.get("_leaf")
+                  and any(under(f, g) or under(g, f) for g in fm.get("enforces") or [] if is_path(g)))
+
+
+def print_governors(ctx, fms, f, gov):
+    for cid in gov:
+        parents = ", ".join(fms[cid].get("implements") or []) or "root"
+        print(f"contract {cid} (implements: {parents})")
+        print("\n\n".join(format_quote(ctx, cid, c) for c in fms[cid].get("_clauses", [])))
+        print()
+
+
+def changed_files(ctx):
+    out = set()
+    for cmd in (["git", "diff", "--name-only", "HEAD"], ["git", "ls-files", "--others", "--exclude-standard"]):
+        try:
+            out |= set(subprocess.run(cmd, cwd=ctx.root, capture_output=True, text=True, check=True).stdout.split("\n"))
+        except (OSError, subprocess.CalledProcessError):
+            pass
+    return sorted(f for f in out if f and (ctx.root / f).exists())
+
+
+def cmd_which(ctx, a):
+    _, fms, _ = load_all(ctx)
+    targets = changed_files(ctx) if a.changed else [norm_path(ctx, p) for p in a.paths]
+    if not targets:
+        print("nothing to look up" if a.changed else "give a path or --changed")
+        return 0 if a.changed else 1
+    worst = 0
+    for f in targets:
+        if not in_domain(ctx, f):
+            print(f"OUTSIDE DOMAIN {f}: not governed by the flow\n" if not a.changed else "", end="")
+            continue
+        gov = governors(ctx, fms, f)
+        if not gov:
+            print(f"UNCONTRACTED ZONE {f}: no contract governs it")
+            worst = NOT_GOVERNED
+            continue
+        print(f"{f} is governed by: {', '.join(gov)}\n")
+        if not a.changed:
+            print_governors(ctx, fms, f, gov)
+    return worst
+
+
+FLOW_KEYS = ["flow", "step", "of", "title", "contract", "ticket"]
+
+
+def flow_file(ctx):
+    return ctx.ws / "flow.json"
+
+
+def load_flow(ctx):
+    f = flow_file(ctx)
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+
+
+def save_flow(ctx, st):
+    flow_file(ctx).write_text(json.dumps(st, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+
+
+def cmd_flow(ctx, a):
+    st = load_flow(ctx)
+    if a.fcmd == "start":
+        save_flow(ctx, {"flow": a.name, "step": 0, "of": 0, "title": "", "contract": "", "ticket": ""})
+        print(f"flow {a.name} started")
+        return 0
+    if a.fcmd == "stop":
+        if flow_file(ctx).exists():
+            flow_file(ctx).unlink()
+        print("flow stopped")
+        return 0
+    if st is None:
+        sys.exit("no flow active: run `flow start <name>` first")
+    if a.fcmd == "step":
+        st.update(step=a.number, title=a.title)
+        if a.of:
+            st["of"] = a.of
+    elif a.fcmd == "set":
+        if a.contract is not None:
+            if a.contract:
+                m = re.match(r"^([a-z0-9_]+)#([a-z0-9_]+)$", a.contract)
+                if not m or clause_info(ctx, m.group(1), m.group(2)) is None:
+                    sys.exit(f"no clause {a.contract}: write it as <contract>#<clause>")
+            st["contract"] = a.contract
+        if a.ticket is not None:
+            if a.ticket and not tpath(ctx, a.ticket)[0].exists():
+                sys.exit(f"no ticket {a.ticket}")
+            st["ticket"] = tpath(ctx, a.ticket)[1] if a.ticket else ""
+        if a.name:
+            st["flow"] = a.name
+    save_flow(ctx, st)
+    print("flow state updated")
+    return 0
+
+
+def cmd_header(ctx, a):
+    st = load_flow(ctx)
+    if st is None:
+        sys.exit("no flow active: run `flow start <name>` first")
+    whys = a.why or []
+    if len(whys) != len(a.file or []):
+        sys.exit("give one --why for every --file")
+    _, fms, _ = load_all(ctx)
+    rows = []
+    for raw, why in zip(a.file or [], whys):
+        f = norm_path(ctx, raw)
+        if not (ctx.root / f).exists():
+            sys.exit(f"{f} does not exist")
+        shown = re.sub(r"^.*?(?=(:\d|$))", f, raw, count=1) if re.search(r":\d", raw) else f
+        if not in_domain(ctx, f):
+            note = "outside the contracted domain"
+        else:
+            gov = governors(ctx, fms, f)
+            if not gov:
+                print(f"UNCONTRACTED ZONE {f}: no contract governs it, no header: cover it first (contract-reverse or contract-refine)")
+                return NOT_GOVERNED
+            note = "governed by " + ", ".join(gov)
+        rows.append(f"  {shown} → {why} ({note})")
+    where = "—"
+    if st.get("contract"):
+        cid, clause = st["contract"].split("#")
+        info = clause_info(ctx, cid, clause)
+        where = f"{st['contract']} ({rel(ctx.cpath(cid), ctx.root)}:{info[1]})" if info else f"{st['contract']} (clause no longer exists)"
+    step = "—" if not st.get("step") else f"{st['step']}" + (f" of {st['of']}" if st.get("of") else "") + (f" — {st['title']}" if st.get("title") else "")
+    sc = scope_items(ctx)
+    print(f"📍 flow: {st['flow']} · step: {step}")
+    print(f"contract: {where}")
+    print(f"ticket: {st.get('ticket') or '—'}")
+    print(f"scope: {len(sc)} entries" if sc else "scope: —")
+    print("files:" if rows else "files: —")
+    for r in rows:
+        print(r)
+    return 0
+
+
 # --------------------------------------------------------------------------- main
 
 def build_parser():
@@ -1313,6 +1615,31 @@ def build_parser():
     sa.add_argument("items", nargs="+")
     s.add_parser("clear")
     s.add_parser("list")
+    q = sub.add_parser("quote")
+    q.add_argument("ref", help="<contract>#<clause>, or a contract with --all")
+    q.add_argument("--all", action="store_true")
+    fd = sub.add_parser("find")
+    fd.add_argument("words", nargs="+")
+    fd.add_argument("--limit", type=int, default=12)
+    wc = sub.add_parser("which-contracts")
+    wc.add_argument("paths", nargs="*")
+    wc.add_argument("--changed", action="store_true", help="the files changed since HEAD, and untracked ones")
+    cq = sub.add_parser("check-quotes")
+    cq.add_argument("files", nargs="*")
+    fl = sub.add_parser("flow").add_subparsers(dest="fcmd", required=True)
+    fl.add_parser("start").add_argument("name")
+    fs = fl.add_parser("step")
+    fs.add_argument("number", type=int)
+    fs.add_argument("title")
+    fs.add_argument("--of", type=int)
+    fe = fl.add_parser("set")
+    fe.add_argument("--name")
+    fe.add_argument("--contract", help="<contract>#<clause>, or '' to clear")
+    fe.add_argument("--ticket", help="a ticket ID, or '' to clear")
+    fl.add_parser("stop")
+    hd = sub.add_parser("header")
+    hd.add_argument("--file", action="append", help="path, path:line or path:line-line; repeat for each file")
+    hd.add_argument("--why", action="append", help="why the file is treated; one per --file")
     h = sub.add_parser("handoff")
     h.add_argument("--stopped-at", required=True)
     h.add_argument("--why")
@@ -1328,7 +1655,8 @@ def main():
     ctx = Ctx(find_workspace(root, a.workspace), root, Path(__file__).resolve().parent)
     handlers = {"verify": cmd_verify, "ticket": cmd_ticket, "clause": cmd_clause, "edge": cmd_edge,
                 "files": cmd_files, "root": cmd_root, "contract": cmd_contract, "scope": cmd_scope,
-                "summary": cmd_summary, "handoff": cmd_handoff}
+                "summary": cmd_summary, "handoff": cmd_handoff, "quote": cmd_quote, "find": cmd_find,
+                "which-contracts": cmd_which, "check-quotes": cmd_check_quotes, "flow": cmd_flow, "header": cmd_header}
     if a.cmd == "lint":
         errors, zones, _, _ = run_lint(ctx)
         sys.exit(1 if errors or zones else 0)

@@ -23,7 +23,7 @@ change contracts (grilling) → parity check → tickets → Mr. Wolf resolves c
 - `mr-wolf`: resolves code tickets one at a time
 - `mattpocock-skills:grilling` (external, used by `recontract` and `contract-refine`)
 - `contract-handoff`: records where the flow stopped
-- `contract-tools.py` (in the tests folder): the script that lints, verifies, writes every ticket and every structured part of a contract, keeps the scope and writes the handoff. Skills call it; they do not edit those parts by hand.
+- `contract-tools.py` (in the tests folder): the script that lints, verifies, writes every ticket and every structured part of a contract, keeps the scope and the position of the flow, prints quotes and the position header, searches contracts, and writes the handoff. Skills call it; they do not edit those parts by hand.
 
 The external skill comes from Matt Pocock's skills and must be installed beforehand.
 
@@ -35,21 +35,41 @@ All state lives in the workspace (contracts in one flat folder with a generated 
 
 These rules hold from the moment `/contract-flow` starts until the user stops it.
 
+### Position and citations
+
+You and the user must never lose where you are, and every word of yours about the system rests on a contract's words.
+
+- **Position header.** Every reply that talks about the system or touches a file starts with the block printed by `contract-tools header --file <path[:lines]> --why "<note>"` (one `--file` and `--why` per file treated, with the lines the words refer to). Paste it as printed; never write or edit it. It shows flow, step, contract and clause with their `path:line`, ticket, scope, and each file with its lines and why. The tool reads the flow state you keep with `contract-tools flow start <name>` when the flow starts, `flow step <n> <title> --of <total>` at every step, `flow set --contract <c>#<k> --ticket <T-name>` when the focus changes, and `flow stop` when the user stops. Without a block printed by the tool, give no answer on the merits and make no change to the code. If `header` ends with `UNCONTRACTED ZONE`, follow **No contract covers it**.
+- **Quotes.** What a contract says is shown only as a **quote**, printed by `contract-tools quote <contract>#<clause>` (or `quote --all <contract>`), never written from memory and never paraphrased as if it were one:
+
+  ```
+  quote — auth_session#session_expires (contracts/auth_session.md:42)
+  > The token expires after 15 minutes.
+  ```
+
+  The text must be the clause's exact text; it may be cut with `…` only if what is kept is identical. In tickets, handoffs and contracts the lint (`check-quotes`) rejects a quote that differs from its contract. In chat nothing checks it for you, so use the tool's output.
+- **Names are words.** Contracts, clauses and tickets are named with words (`auth_session#session_expires`, `T-timeout_too_long`); never refer to them by number or code.
+
 ### Statement check
 
-Whenever the user states how something works or should work, find the contracts that enforce it, read the relevant clauses and documentation, then read the code they enforce. Decide:
+This procedure runs before answering any question or request about the system while the flow is active. Do the steps in this order:
 
-| Contract says | Code does | Then |
-|---|---|---|
-| same as the user | anything | Nothing to change in the contract. If the code disagrees, open a code ticket now (`contract-tools ticket new`). |
-| something else | what the contract says | **Correct the user**: quote the contract and the code (path and line). Ask whether they want to change the behaviour; only then refine. |
-| something else | what the user says | The contract is outdated: propose `contract-refine` with the code as evidence. |
-| something else | neither | Show all three versions and ask which is right; then refine or open a code ticket. |
-| something else | not written yet | Quote the contract and ask which version holds; refine if the user's. |
-| nothing | exists | Uncontracted zone: propose `contract-reverse` on it. |
-| nothing | not written yet | New requirement: propose `contract-refine` (or `recontract` if it needs new contracts). |
+1. **Search by quote.** Run `contract-tools find <the words of the request>` and `contract-tools which-contracts <each file named or touched>`.
+2. **No contract covers it** (`UNCONTRACTED ZONE`, exit code 3): follow **No contract covers it**. Do not answer on the merits.
+3. **Compare.** Put the request against the quotes found and read the code they enforce. Write one line with exactly one of these outcomes:
+   - `compatible`: the contracts allow it. If the code disagrees with a quote, open a code ticket now (`contract-tools ticket new`).
+   - `contradicts`: show the quote that contradicts it and the code (path and line), then ask whether to change the contract (`contract-refine`) or drop the request. Do not carry the request out.
+   - `undecidable`: the quotes neither allow nor forbid it; show them and ask the user, then refine or open a ticket.
+4. **Differences between contract and code.** When the user is right and the contract is outdated, propose `contract-refine` with the code as evidence; when the contract and the code disagree with each other, open the ticket. Never accept a statement that contradicts a quote, and never change a contract because the user said so without showing the quote and the code. If the user declines or postpones a proposal, open the ticket anyway (direction `contract` or `code`): nothing found stays only in the conversation.
+5. **Show the work.** The reply starts with the position header, then the outcome line and the quotes it rests on.
 
-Never silently accept a statement that contradicts a contract, and never change a contract only because the user said so without showing what the contract and the code say. If the user declines or postpones any proposal, open the ticket anyway (direction `contract` or `code`): nothing found is left only in the conversation.
+### No contract covers it
+
+When `find` or `which-contracts` finds nothing, or `header` ends with `UNCONTRACTED ZONE`, say `uncontracted zone`, name the file or the words, and stop: no answer on the merits and no change to the code. Offer only these ways forward:
+- code that exists: `contract-reverse` on it;
+- a new requirement: `contract-refine` (or `recontract` if it needs new contracts), whose `clause add --ticket` writes the clause, a failing stub and its ticket together.
+
+Code outside the contracted domain (`OUTSIDE DOMAIN`) is not governed by the flow and is handled normally.
 
 ### Rigidity
 
@@ -58,16 +78,17 @@ The flow is strict because it contracts other workflows, which may be as flexibl
 - **No discrepancy is forgotten.** Every difference between a contract and the code, found by any skill or by the statement check, becomes a ticket the moment it is found, without asking. The user may change its direction or close it as `obsolete` with a reason; they cannot have it not opened. The project is not stable while a ticket is `open` or `rerouted`.
 - **Governed code is never edited directly.** A request to change code inside the contracted domain becomes a requirement first (`contract-refine`), then a code ticket, then `mr-wolf` at step 5. Requests outside the domain are done normally. The only way out is the user stopping the flow, which writes a handoff.
 - **Structure goes through the tool.** Tickets, clauses, edges, scope and handoff are written only with `contract-tools`; you write prose. The lint catches anything left inconsistent by a hand edit.
-- **Keep your place.** Run `contract-tools summary` when the flow starts and after every step, and read its state instead of rereading all tickets. The scope is kept in `scope.txt` (`contract-tools scope add`), not in your memory.
+- **Keep your place.** Run `contract-tools summary` when the flow starts and after every step, and read its state instead of rereading all tickets. The scope is kept in `scope.txt` (`contract-tools scope add`) and the position in `flow.json` (`contract-tools flow`), not in your memory.
 
 ### Other rules
 
-- **Uncontracted zones** are announced in the reply where they are found, with a proposal to contract them. They are not stored: the lint recomputes them on every run (`ZONE`).
+- **Uncontracted zones** are announced in the reply where they are found, with a proposal to contract them (see **No contract covers it**). They are not stored: the lint recomputes them on every run (`ZONE`).
 - **Scope tracking.** Add every contract changed and file touched to the scope with `contract-tools scope add`. It is the scope of the next parity check.
 
 ## Steps
 
 ### 0. Locate the workspace
+- Once the workspace is found, run `contract-tools flow start contract-flow`; at every step below, `flow step <n> <title> --of 6`, and `flow set --name <skill>` whenever you invoke a skill, so the header names the skill at work. `contract-handoff` ends the flow with `flow stop`.
 - Look for `Contract-flow workspace: <path>` in `CLAUDE.md`/`AGENTS.md`, then for a `README.md` containing `<!-- contract-flow-workspace -->`. Show the user what you found and ask them to confirm.
 - **Tool version.** Run `python3 -I <tests folder>/contract-tools.py --version` and the same on the copy shipped in the `templates/` folder of the `contract-init` skill. If the project has no `contract-tools.py` (an old `contract-lint.py`), the command fails, or the number is lower, say that the workspace is out of date and offer `contract-init` in update mode before anything else. If the user declines, continue, and say that the checks may not match this workflow.
 - If none exists, invoke `contract-init`. Then:

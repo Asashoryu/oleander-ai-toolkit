@@ -55,6 +55,7 @@ To start or resume, run `/contract-flow`.
 | `contracts/` | All contracts, in one folder with no subfolders, plus the generated `INDEX.md`. |
 | `tickets/` | One file per ticket, `T-<name>.md`. Closed tickets stay here with their status. |
 | `handoff/` | Session handoffs. The most recent one says what to do next. |
+| `flow.json` (in the workspace) | The position of the flow shown in the header: flow, step, contract, ticket. Written only by `contract-tools flow`; deleted when the flow stops. |
 | `scope.txt` (in the workspace) | The contracts and files touched in this flow, one per line. Written only by `contract-tools scope`. |
 | tests folder | `contract-tools.py`, plus one verification per clause: `<contract id>/<clause name>.<ext>` (not for `covered-by` clauses). |
 
@@ -235,6 +236,7 @@ A clause with no verification row, or whose file is missing, is a discrepancy.
 | References | a markdown link to a file or heading that does not exist; a path in backticks that does not exist; a `<contract id>#<clause>` that does not exist; a `file:line` whose line is past the end of the file. Code blocks are not checked. |
 | Size | a contract over 300 lines or over 15 enforced entries: propose a new level |
 | Coverage | a file of the **Contracted domain** (not **Excluded**) that no leaf contract enforces, printed as `ZONE` |
+| Quotes | a `quote` block (see **Quotes and position**) whose clause does not exist, whose path does not exist, or whose text is not the clause's text |
 | Tickets | see **Ticket format** |
 
 Run it from the project root: `<script runner> <tests folder>/contract-tools.py lint`. It also regenerates the links block of every contract and `INDEX.md`, so every file a contract enforces and every verification file is a link, and `INDEX.md` links each file to its leaf contracts. It does not judge language or completeness: the parity check judges completeness.
@@ -259,8 +261,40 @@ One script, `contract-tools.py` in the tests folder, run from the project root. 
 | `clause remove <contract> <name>` | Removes the rows and the file, and makes an open ticket on it `obsolete` |
 | `ticket new\|log\|status\|direction\|reopen\|list\|sweep` | The only way to write tickets (see **Ticket format**) |
 | `scope add\|clear\|list` | Keeps `scope.txt` |
+| `quote <contract>#<clause>` or `quote --all <contract>` | Prints the exact text of a clause as a quote, with the `path:line` of the contract |
+| `find <words>` | Searches clauses, purposes, notes and tickets for the words; each hit is printed as a quote. Exit 3 (`UNCONTRACTED ZONE`) when nothing matches |
+| `which-contracts <path>...` or `--changed` | The leaf contracts that govern each file, with their clauses as quotes. Exit 3 for a file of the contracted domain that no contract governs; `OUTSIDE DOMAIN` for one outside it. `--changed` checks the files changed since `HEAD` and the untracked ones |
+| `check-quotes [file...]` | Checks every quote block in contracts, tickets, handoffs and this README against the contracts. The lint runs it on all of them |
+| `flow start <name>\|step <n> <title> [--of N]\|set [--name N] [--contract c#k] [--ticket T]\|stop` | Keeps the position of the flow in `flow.json` |
+| `header --file <path[:lines]> --why <note> ...` | Prints the position header from `flow.json` and the contracts; exit 3 and no header if a file is an uncontracted zone |
 | `summary` | Tickets by status and direction, scope, lint result, and whether anything is open |
 | `handoff --stopped-at S [--why W --decisions D --next N --skills K]` | Writes the handoff file with the fixed sections, scope and tickets filled in |
+
+## Quotes and position
+
+What a contract says is shown only as a **quote**, in this form, printed by `contract-tools quote`:
+
+```
+quote — auth_session#session_expires (contracts/auth_session.md:42)
+> The token expires after 15 minutes.
+```
+
+The text under `>` must be the clause's exact text; it may end with `…` only if what is kept is identical. The lint (`check-quotes`) fails a quote in a contract, ticket, handoff or this README whose reference does not exist or whose text differs, naming the file and line of the quote. A paraphrase is not a quote and is not written in this form. The line number is where the clause was when the quote was printed: it is not checked, because editing a contract moves lines.
+
+Every reply of the agent about the system starts with the **position header** printed by `contract-tools header`:
+
+```
+📍 flow: contract-refine · step: 3 of 5 — write clauses
+contract: auth_session#session_expires (contracts/auth_session.md:42)
+ticket: T-timeout_too_long
+scope: 4 entries
+files:
+  src/auth/session.py:18-31 → expiry time (governed by auth_session)
+```
+
+A field with no value is `—`. A file in an uncontracted zone gets no header: it is covered first with `contract-reverse` or `contract-refine`.
+
+**Limits.** Nothing checks a chat reply automatically; the header printed by the tool and the rules in the skills are what keep the agent on the contracts' words. The checks that do run on their own are the lint on every document, and the **Hooks** setting for the files that change (`contract-tools which-contracts --changed` can be added there next to the lint).
 
 ## Ticket format
 

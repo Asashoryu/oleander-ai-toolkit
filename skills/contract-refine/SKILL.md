@@ -11,6 +11,10 @@ Changes what a few contracts say. Reorganising the graph (moving, merging, split
 
 Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Names**, **Contract format** (with **Verification** and **Lint**) sections are binding.
 
+## Quotes
+
+When you say what a contract says, use `contract-tools quote <contract>#<clause>` and paste its output; never paraphrase it or write it from memory. Look contracts up with `contract-tools find` and `which-contracts` (exit code 3 and `UNCONTRACTED ZONE` mean no contract covers it: stop, see **No contract covers it** in the contract-flow workflow). Names are words, never codes.
+
 ## 1. Understand the input
 
 The input is one of:
@@ -38,6 +42,7 @@ Work from the highest affected contract downwards, through every parent branch. 
 - **Structured parts go through `contract-tools`, never by hand**: `clause add|rename|remove`, `edge`, `files`, `root`, `contract new|rename`. You write only the prose (Purpose, View, Notes). A clause added for a gap is created with `clause add ... --ticket <name>`, which makes a stub verification that fails and opens its ticket at once. Write the real verification into the stub afterwards.
 - Keep the `covered-by` rows of the parents of any clause you changed correct (`clause add` on the parent, or `clause remove` and add).
 - Run `contract-tools lint` (see **Lint** in the README); it rewrites the links blocks and `INDEX.md`. Do not finish while a contract you touched fails it. Add each contract you changed to the scope: `contract-tools scope add <id>`. A contract written in an older format (`realizes`, nested folders) fails the lint: bring it to the current template, and flag a move out of a subfolder to the user.
+- Show the clauses you change as quotes (`contract-tools quote`) before and after the change.
 - For each input ticket, use `contract-tools ticket log` to say what changed. If the contract change removes the discrepancy, `ticket status <id> resolved`; if the clause is now right and the code must follow, `ticket reopen` then `ticket direction <id> code`. `ticket sweep` closes tickets whose clause no longer exists.
 
 ## 4. Hand over

@@ -13,6 +13,10 @@ Read the workspace `README.md` (find it through the `Contract-flow workspace:` l
 
 The input is a list of sources given by the invoker or the user: code files or folders, documents (existing documentation can be copied or adapted as the base), or other contracts. If the list is empty, ask for it. If it is too large for one readable contract, propose how to split it into several and run once per part.
 
+## Quotes
+
+When you say what a contract says, use `contract-tools quote <contract>#<clause>` and paste its output; never paraphrase it or write it from memory. Look contracts up with `contract-tools find` and `which-contracts` (exit code 3 and `UNCONTRACTED ZONE` mean no contract covers it: stop, see **No contract covers it** in the contract-flow workflow). Names are words, never codes.
+
 ## 1. Read every source
 
 Read each one. For code, note:

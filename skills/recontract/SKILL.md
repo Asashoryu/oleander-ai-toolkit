@@ -13,6 +13,10 @@ Read the workspace `README.md` (find it through the `Contract-flow workspace:` l
 
 If the request is to document code that exists but has no contracts, say that this is reverse contracting and stop.
 
+## Quotes
+
+When you say what a contract says, use `contract-tools quote <contract>#<clause>` and paste its output; never paraphrase it or write it from memory. Look contracts up with `contract-tools find` and `which-contracts` (exit code 3 and `UNCONTRACTED ZONE` mean no contract covers it: stop, see **No contract covers it** in the contract-flow workflow). Names are words, never codes.
+
 ## 1. Survey
 
 Read:

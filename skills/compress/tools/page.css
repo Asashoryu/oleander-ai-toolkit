@@ -1,0 +1,42 @@
+:root{--bg:#faf8f4;--fg:#1f1d1a;--muted:#706b63;--line:#e4dfd5;--card:#fff;--accent:#8a3b2a;--soft:#f1ede4;
+--F:#2f8a57;--I:#c48a00;--S:#c0392b;--shadow:0 1px 2px rgba(0,0,0,.05),0 6px 20px rgba(60,40,10,.06);
+--serif:Georgia,"Iowan Old Style","Palatino Linotype",serif;--sans:system-ui,-apple-system,"Segoe UI",sans-serif}
+[data-theme=dark]{--bg:#16171a;--fg:#e9e6df;--muted:#9a968c;--line:#2e2f33;--card:#1f2024;--accent:#e0a08a;--soft:#25262a;
+--F:#4cc78a;--I:#e8b83a;--S:#ef7365;--shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.35)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 var(--serif);-webkit-font-smoothing:antialiased}
+.hero{max-width:1240px;margin:0 auto;padding:56px 28px 20px;position:relative}
+.kicker{font:600 12px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+.hero h1{font:600 clamp(32px,5vw,52px)/1.1 var(--serif);margin:.25em 0 .2em;letter-spacing:-.01em}
+.sub{color:var(--muted);font:15px var(--sans)}
+#theme{position:absolute;top:22px;right:28px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:6px 14px;font:13px var(--sans);cursor:pointer}
+.layout{max-width:1240px;margin:0 auto;padding:12px 28px 80px;display:grid;grid-template-columns:210px minmax(0,1fr) 300px;gap:44px;align-items:start}
+nav#toc{position:sticky;top:24px;font:14px/1.4 var(--sans);max-height:calc(100vh - 48px);overflow:auto}
+nav#toc b{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+nav#toc a{display:block;color:var(--muted);text-decoration:none;padding:4px 0 4px 12px;border-left:2px solid var(--line)}
+nav#toc a.l3{padding-left:26px;font-size:13px}nav#toc a:hover{color:var(--fg)}
+nav#toc a.on{color:var(--fg);border-left-color:var(--accent);font-weight:600}
+main#content{min-width:0}
+main h2{font:600 28px/1.25 var(--serif);margin:2.2em 0 .5em;padding-bottom:.25em;border-bottom:1px solid var(--line)}
+main h2:first-child{margin-top:.3em}
+main h3{font:600 21px/1.3 var(--serif);margin:1.8em 0 .4em}
+main h4{font:600 13px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:1.6em 0 .3em}
+main ul{padding-left:1.2em}main li{margin:.35em 0}main li::marker{color:var(--accent)}
+sup a{font:600 11px var(--sans);color:var(--accent);text-decoration:none;padding:0 1px}
+blockquote{margin:1.4em 0;padding:.2em 0 .2em 1.2em;border-left:3px solid var(--accent);font-style:italic}
+blockquote cite{display:block;font:13px var(--sans);font-style:normal;color:var(--muted);margin-top:.3em}
+.timeline{list-style:none;padding:0;margin:1.2em 0;border-left:2px solid var(--line)}
+.timeline li{position:relative;padding:0 0 1em 22px;margin:0}
+.timeline li::before{content:"";position:absolute;left:-6px;top:.55em;width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--bg)}
+.timeline time{display:block;font:600 13px var(--sans);color:var(--accent)}
+ol.refs{font:14px/1.5 var(--sans);color:var(--muted)}ol.refs li:target{background:var(--soft);color:var(--fg)}
+aside#scheda{position:sticky;top:24px;display:grid;gap:16px;font:14px/1.5 var(--sans)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+.card h5{margin:0 0 10px;font:700 11px var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.card dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 14px}.card dt{color:var(--muted)}.card dd{margin:0}
+.big{font:600 40px/1 var(--serif)}.big small{font:13px var(--sans);color:var(--muted);margin-left:6px}
+.bar{height:8px;border-radius:99px;background:var(--soft);margin:12px 0 6px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.muted{color:var(--muted)}.card ul{margin:0;padding-left:1.1em}
+details summary{cursor:pointer;color:var(--muted);font:600 13px var(--sans)}details[open] summary{margin-bottom:8px}
+@media(max-width:1020px){.layout{grid-template-columns:minmax(0,1fr)}nav#toc,aside#scheda{position:static;max-height:none}nav#toc{display:none}aside#scheda{order:-1}}
+@media print{#theme,nav#toc{display:none}.layout{display:block}body{background:#fff;color:#000}}

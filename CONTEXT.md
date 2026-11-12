@@ -21,10 +21,14 @@ A document that captures where a workflow stopped, so a fresh session can resume
 
 ## Learning
 
-**Setup note**
-The note `<Topic> - Setup` written by `studio-setup`: the study place, the source, the report form and the global study rules of one topic.
+**Kept, noise, lost**
+The three outcomes of a piece of source in `compress`: information that stays, text with no information (discarded with a reason), information the user accepts to sacrifice (lossy mode only).
+
+**Visualization**
+A folder in `compress/visualizations/` with the data schema a report must follow, a deterministic JavaScript renderer and the writing rules. `sintesi` is the default.
+
 **Fact, interpretation, supposition, reasoning**
-The claim types of `stoplight`: green when the source strongly supports it, yellow when it is the user's rework, red when it is strong for the user and weak in the source. A reasoning derives a new claim from existing ones.
+The claim types of the `stoplight` visualization: green when the source strongly supports it, yellow when it is the user's rework, red when it is strong for the user and weak in the source. A reasoning derives a new claim from existing ones.
 
 ## Contracts
 

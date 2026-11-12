@@ -1,0 +1,22 @@
+.sl-legend{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px;font:13px var(--sans)}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:4px 12px;border-radius:99px;border:1px solid var(--line);background:var(--card)}
+.chip::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--c)}
+.F{--c:var(--F)}.I{--c:var(--I)}.S{--c:var(--S)}
+.sl-graph{position:relative;display:flex;gap:70px;overflow-x:auto;padding:8px 4px 18px;margin:0 -4px}
+.sl-col{display:flex;flex-direction:column;justify-content:center;gap:18px;flex:0 0 250px;position:relative;z-index:1}
+.sl-card{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--c);border-radius:10px;padding:11px 14px 12px;font:14px/1.45 var(--sans);box-shadow:var(--shadow);transition:opacity .15s,transform .15s}
+.sl-card .id{font:700 11px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--c)}
+.sl-card .id span{color:var(--muted);font-weight:500;letter-spacing:0;text-transform:none;margin-left:6px}
+.sl-card p{margin:4px 0 0}.sl-card .cite{margin-top:6px;font-size:12px;color:var(--muted);font-style:italic}
+.sl-graph.focus .sl-card:not(.rel){opacity:.28}.sl-graph.focus .sl-card.rel{transform:translateY(-1px)}
+.sl-svg{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:0}
+.sl-svg path{fill:none;stroke:var(--muted);stroke-width:1.5;opacity:.55;transition:opacity .15s}
+.sl-svg path.dim{opacity:.08}.sl-svg path.hot{opacity:1;stroke:var(--accent);stroke-width:2.2}
+.sl-svg text{font:600 10px var(--sans);fill:var(--muted)}
+.sl-svg rect{fill:var(--bg);stroke:var(--line)}
+.sl-r{list-style:none;padding:0;display:grid;gap:10px;margin:22px 0 0}
+.sl-r li{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font:14px/1.5 var(--sans);margin:0}
+.sl-r b{color:var(--accent)}.sl-r .t{display:inline-block;min-width:26px;text-align:center;padding:0 7px;margin:0 2px;border-radius:6px;font-weight:700;font-size:12px;color:#fff;background:var(--c)}
+.layout:has(.sl-graph){grid-template-columns:minmax(0,1fr) 300px}.layout:has(.sl-graph) nav#toc{display:none}
+.sl-col{flex:1 1 0;min-width:170px}.sl-graph{gap:44px}
+@media(max-width:1020px){.layout:has(.sl-graph){grid-template-columns:minmax(0,1fr)}}

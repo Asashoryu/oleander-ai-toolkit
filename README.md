@@ -12,8 +12,7 @@ Skills and workflows for Claude Code. Terms are defined in [CONTEXT.md](CONTEXT.
 | `parity-check` | skill | Runs the verifications, finds discrepancies and uncontracted files, opens tickets. |
 | `contract-handoff` | skill | Records where a contract-flow session stopped, in the workspace, so it can resume. |
 | `mr-wolf` | skill | Resolves a ticket or implementation document. |
-| `studio-setup` | skill | Sets up where and how a topic is studied, fixes the study rules, imports exported chat conversations. |
-| `stoplight` | skill | Study method: facts, interpretations and suppositions linked by reasonings, written in batch after discussion. |
+| `compress` | skill | Condenses what the user understands from a source into a standard report (JSON rendered as HTML), by discussion and iterations. Visualizations: `sintesi`, `stoplight`. |
 
 **Requires** Matt Pocock's `mattpocock-skills:grilling` skill ([mattpocock/skills](https://github.com/mattpocock/skills)).
 

@@ -46,6 +46,19 @@ fi
 mkdir -p "$target"
 installed=()
 
+# prune what an earlier version installed and the repo no longer has
+current=" $(for s in "${sources[@]}"; do basename "$s"; done | tr '\n' ' ') "
+for dest in "$target"/*; do
+    [ -e "$dest" ] || [ -L "$dest" ] || continue
+    name="$(basename "$dest")"
+    case "$current" in *" $name "*) continue ;; esac
+    if [ -L "$dest" ]; then
+        case "$(readlink "$dest")" in "$repo"/skills/*|"$repo"/workflows/*) rm "$dest"; echo "pruned   $name" ;; esac
+    elif [ -d "$dest" ] && [ -f "$dest/.oleander" ]; then
+        rm -rf "$dest"; echo "pruned   $name"
+    fi
+done
+
 for src in "${sources[@]}"; do
     name="$(basename "$src")"
     dest="$target/$name"

@@ -43,7 +43,9 @@ One file `<Source> - Condensato.json` next to the source, overwritten at every i
  "data": {}}
 ```
 
-`data` follows the schema of the chosen visualization, found in `visualizations/<name>/rules.md`. Read that file before writing. Available: `sintesi` (default), `stoplight`. The user may change visualization between iterations: reorganise the kept information into the new schema, nothing else changes.
+`data` follows the schema of the chosen visualization, found in `visualizations/<name>/rules.md`: its keys, nesting and writing rules live there only. Read that file before writing. Available: `sintesi` (default: sections, timelines, key facts in a `scheda`, quotes) and `stoplight` (claims and reasonings). The user may change visualization between iterations: reorganise the kept information into the new schema, nothing else changes.
+
+The `build` step also writes the page the user reads: an index, the text, a card with ratio, untreated parts and discards. Tell the user the path of the `.html` file when you show the ratio.
 
 ## An iteration
 
@@ -51,7 +53,7 @@ One file `<Source> - Condensato.json` next to the source, overwritten at every i
 2. Say in one line which subject the iteration covers.
 3. Explain and discuss, as in the rules, until no `Aperto` remains or the user says to go on.
 4. Propose the batch: the new kept points, the noise with reasons, the lost with the user's consent. The user confirms, corrects or discards line by line.
-5. Condense: write the kept points into `data`, shorten the points already there where the discussion allows, move the treated part out of `not_treated`.
+5. Condense: write the kept information into `data`, in the shape the visualization asks (for `sintesi`: dated events into `timeline`, facts to know at a glance into `scheda`), shorten the points already there where the discussion allows, move the treated part out of `not_treated`.
 6. Run `python3 tools/compress-tools.py build "<report>.json"` (path relative to this skill). It validates the report, writes the HTML next to it and prints source words, report words and ratio. Fix every error it prints, then show the ratio. Without a shell, count by hand and say it is an estimate.
 7. Stop when the user says so, or when no more words can go without touching kept information: say so and propose to stop.
 

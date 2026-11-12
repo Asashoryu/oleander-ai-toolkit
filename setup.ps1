@@ -37,6 +37,16 @@ if ($dupes) { throw "Duplicate names across skills/ and workflows/: $($dupes.Nam
 New-Item -ItemType Directory -Force $Target | Out-Null
 $installed = @()
 
+# prune what an earlier version installed and the repo no longer has
+foreach ($e in Get-ChildItem $Target -Force -ErrorAction SilentlyContinue) {
+    if ($sources.Name -contains $e.Name) { continue }
+    $ours = if ($e.LinkType) { $e.Target | Where-Object { $_ -like (Join-Path $PSScriptRoot 'skills*') -or $_ -like (Join-Path $PSScriptRoot 'workflows*') } }
+            else { $e.PSIsContainer -and (Test-Path (Join-Path $e.FullName '.oleander')) }
+    if (-not $ours) { continue }
+    if ($e.LinkType) { $e.Delete() } else { Remove-Item $e.FullName -Recurse -Force }
+    Write-Host "pruned   $($e.Name)"
+}
+
 foreach ($src in $sources) {
     $dest = Join-Path $Target $src.Name
     $existing = Get-Item $dest -Force -ErrorAction SilentlyContinue

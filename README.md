@@ -12,7 +12,10 @@ Skills and workflows for Claude Code. Terms are defined in [CONTEXT.md](CONTEXT.
 | `parity-check` | skill | Runs the verifications, finds discrepancies and uncontracted files, opens tickets. |
 | `contract-handoff` | skill | Records where a contract-flow session stopped, in the workspace, so it can resume. |
 | `mr-wolf` | skill | Resolves a ticket or implementation document. |
-| `compress` | skill | Condenses what the user understands from a source into a standard report (JSON rendered as HTML), by discussion and iterations. Visualizations: `sintesi`, `stoplight`. |
+| `compress` | skill | Compresses a source, or a part of it, into atoms of information with the same meaning in fewer words, automatically and completely, and lists the noise it discarded. Output: a JSON file. |
+| `summarize` | skill | Tells all the atoms of a `compress` report as one narration, with the places as references, rendered as an HTML page. |
+| `stoplight` | skill | Reorganises the atoms of a `compress` report into a graph of facts, interpretations and suppositions, finds the gaps of the source and proposes completions.
+| `stoplight-live` | skill | Live mode of `stoplight`: the agent is concise and everything it writes carries its type F, I or S, until the user says "esci". No report. |
 
 **Requires** Matt Pocock's `mattpocock-skills:grilling` skill ([mattpocock/skills](https://github.com/mattpocock/skills)).
 

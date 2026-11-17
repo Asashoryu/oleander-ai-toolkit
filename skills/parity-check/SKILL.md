@@ -7,6 +7,8 @@ description: Verify contracts against the files they enforce: run the lint and t
 
 Finds where contracts and the files they enforce disagree. It never fixes anything: it finds, and records every discrepancy as a ticket.
 
+While the flow is active, your replies and reports use the format of `contract-flow` (**Reply format**), printed by `contract-tools reply`.
+
 ## Before starting
 
 Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Names**, **Contract graph**, **Contract format** (with **Verification** and **Lint**), **contract-tools** and **Ticket format** sections are binding.

@@ -7,6 +7,8 @@ description: Change the content of a few contracts for a specific task (a new re
 
 Changes what a few contracts say. Reorganising the graph (moving, merging, splitting, changing which contracts a contract implements, adding levels) is out of scope.
 
+While the flow is active, your replies and reports use the format of `contract-flow` (**Reply format**), printed by `contract-tools reply`.
+
 ## Before starting
 
 Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Names**, **Contract format** (with **Verification** and **Lint**) sections are binding.

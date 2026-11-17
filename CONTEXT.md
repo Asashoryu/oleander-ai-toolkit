@@ -21,14 +21,20 @@ A document that captures where a workflow stopped, so a fresh session can resume
 
 ## Learning
 
-**Kept, noise, lost**
-The three outcomes of a piece of source in `compress`: information that stays, text with no information (discarded with a reason), information the user accepts to sacrifice (lossy mode only).
+**Atom, noise, lost, outside**
+The outcomes of a piece of source in `compress`: an atom is information that stays, in the shortest sentence that keeps its meaning, with its place. Noise is text with no information, discarded with a reason. Lost is information the user accepts to sacrifice (lossy mode only). Outside is the part of the source the user did not choose to compress.
 
 **Visualization**
-A folder in `compress/visualizations/` with the data schema a report must follow, a deterministic JavaScript renderer and the writing rules. `sintesi` is the default.
+A skill that reads a `compress` report (`from`) and writes its own JSON, drawn by its own `renderer.js` through the shared page in `compress/tools/`. `summarize` and `stoplight` are the two so far.
 
 **Fact, interpretation, supposition, reasoning**
 The claim types of the `stoplight` visualization: green when the source strongly supports it, yellow when it is the user's rework, red when it is strong for the user and weak in the source. A reasoning derives a new claim from existing ones.
+
+**Live mode**
+A way a skill changes how the agent talks and reasons in the conversation, with no report and no file. It starts and ends on the user's words and lasts while its rule stays in the context. `stoplight-live` is one: concise, every statement carries its type.
+
+**Gap**
+Where a source jumps or is silent: an atom with no stated cause, a conclusion without premises, a jump between two atoms. `stoplight` finds them and proposes completions typed I or S, never F.
 
 ## Contracts
 
@@ -80,7 +86,11 @@ The procedure that runs, while contract-flow is active, before the agent answers
 **Quote**
 The exact text of a clause, printed by `contract-tools quote` as a block (`quote — contract#clause (path:line)` and the text under `>`). The only way the agent shows what a contract says: never from memory, never paraphrased. The lint rejects a quote in a document whose text differs from the contract.
 **Position header**
-The block printed by `contract-tools header` at the start of every agent reply about the system: flow, step, contract and clause with `path:line`, ticket, scope, and the files treated with their lines and why. Built from the flow state (`flow.json`) and the contracts, never written by the agent. Without it the agent gives no answer on the merits and makes no change to the code.
+The block printed by `contract-tools header` from the flow state (`flow.json`) and the contracts: flow, step, contract and clause, ticket, scope, files treated. Available on request; no longer required in replies.
+
+**Reply format**
+The one fixed form of an agent reply while `contract-flow` is active, printed by `contract-tools reply`: the names of the contracts involved after 📄, each a link to its `.md` file, a line, a concise description in plain language, a line, numbered proposals. Nothing else is imposed on the wording.
+
 **Parity**
 The state where a contract and what it covers agree 1:1. Checked contract ↔ the contracts it enforces (their written clauses cover its clauses) and, for leaf contracts, contract ↔ code. Gaps, outdated contracts and off-template contracts are not parity problems: they are solved by refinement. A higher-level contract cares only that its own statements hold, not how lower levels achieve them; verifying it may still require inspecting everything beneath it.
 

@@ -38,7 +38,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-VERSION = 4  # raise it whenever this tool or the README format changes
+VERSION = 10  # raise it whenever this tool or the README format changes
 TYPES = {"unit", "interface", "integration", "end-to-end", "script", "ai-check", "covered-by"}
 SCRIPT_TYPES_NOT = {"ai-check", "covered-by"}
 SECTIONS = ["Purpose", "View", "Clauses", "Verification", "Notes"]
@@ -1250,8 +1250,10 @@ def clause_info(ctx, cid, clause):
     return None
 
 
-def format_quote(ctx, cid, clause):
+def format_quote(ctx, cid, clause, chat=False):
     text, line = clause_info(ctx, cid, clause)
+    if chat:  # the reference is a markdown link, so a click opens the contract rendered
+        return f"📄 quote — [{cid}#{clause}]({rel(ctx.cpath(cid), ctx.root)}) · riga {line}\n> {text}"
     return f"quote — {cid}#{clause} ({rel(ctx.cpath(cid), ctx.root)}:{line})\n> {text}"
 
 
@@ -1316,13 +1318,13 @@ def cmd_quote(ctx, a):
         if fm is None:
             print(f"no contract {a.ref}")
             return 1
-        print("\n\n".join(format_quote(ctx, a.ref, c) for c in fm.get("_clauses", [])))
+        print("\n\n".join(format_quote(ctx, a.ref, c, a.chat) for c in fm.get("_clauses", [])))
         return 0
     m = re.match(r"^([a-z0-9_]+)#([a-z0-9_]+)$", a.ref)
     if not m or clause_info(ctx, m.group(1), m.group(2)) is None:
         print(f"no clause {a.ref}: write it as <contract>#<clause>")
         return 1
-    print(format_quote(ctx, m.group(1), m.group(2)))
+    print(format_quote(ctx, m.group(1), m.group(2), a.chat))
     return 0
 
 
@@ -1497,28 +1499,57 @@ def cmd_header(ctx, a):
             sys.exit(f"{f} does not exist")
         shown = re.sub(r"^.*?(?=(:\d|$))", f, raw, count=1) if re.search(r":\d", raw) else f
         if not in_domain(ctx, f):
-            note = "outside the contracted domain"
+            note = "fuori dal dominio contrattato"
         else:
             gov = governors(ctx, fms, f)
             if not gov:
                 print(f"UNCONTRACTED ZONE {f}: no contract governs it, no header: cover it first (contract-reverse or contract-refine)")
                 return NOT_GOVERNED
-            note = "governed by " + ", ".join(gov)
+            note = "governato da " + ", ".join(gov)
         rows.append(f"  {shown} → {why} ({note})")
     where = "—"
     if st.get("contract"):
         cid, clause = st["contract"].split("#")
         info = clause_info(ctx, cid, clause)
-        where = f"{st['contract']} ({rel(ctx.cpath(cid), ctx.root)}:{info[1]})" if info else f"{st['contract']} (clause no longer exists)"
-    step = "—" if not st.get("step") else f"{st['step']}" + (f" of {st['of']}" if st.get("of") else "") + (f" — {st['title']}" if st.get("title") else "")
+        where = f"{st['contract']} ({rel(ctx.cpath(cid), ctx.root)}:{info[1]})" if info else f"{st['contract']} (clausola non più esistente)"
+    step = "—" if not st.get("step") else f"{st['step']}" + (f" di {st['of']}" if st.get("of") else "") + (f" — {st['title']}" if st.get("title") else "")
     sc = scope_items(ctx)
-    print(f"📍 flow: {st['flow']} · step: {step}")
-    print(f"contract: {where}")
-    print(f"ticket: {st.get('ticket') or '—'}")
-    print(f"scope: {len(sc)} entries" if sc else "scope: —")
-    print("files:" if rows else "files: —")
-    for r in rows:
-        print(r)
+    print(f"📍 flusso: {st['flow']} · passo: {step}")
+    if st.get("contract"):
+        print(f"📄 contratto: {where}")
+    if st.get("ticket"):
+        print(f"ticket: {st['ticket']}")
+    if sc:
+        print(f"ambito: {len(sc)} voci")
+    if rows:
+        print("file:")
+        for r in rows:
+            print(r)
+    return 0
+
+
+RULE = "─" * 48
+
+
+def cmd_reply(ctx, a):
+    """The only fixed format of a reply: the contracts involved, a line, the description, a line, numbered proposals."""
+    names = a.contract or []
+    if ctx:
+        known = set(ctx.contract_ids())
+        for n in names:
+            if n not in known:
+                sys.exit(f"no contract {n}")
+    if not a.text or not a.text.strip():
+        sys.exit("give the description with --text")
+    if not a.option:
+        sys.exit("give at least one --option: the proposals for what to do next")
+    links = [f"[{n}]({rel(ctx.cpath(n), ctx.root)})" if ctx else n for n in names]
+    print("📄 " + (", ".join(links) if links else "nessun contratto coinvolto"))
+    print(RULE)
+    print(a.text.strip())
+    print(RULE)
+    for i, o in enumerate(a.option, 1):
+        print(f"{i}. {o}")
     return 0
 
 
@@ -1618,6 +1649,7 @@ def build_parser():
     q = sub.add_parser("quote")
     q.add_argument("ref", help="<contract>#<clause>, or a contract with --all")
     q.add_argument("--all", action="store_true")
+    q.add_argument("--chat", action="store_true", help="for a chat reply: the reference is a markdown link to the contract")
     fd = sub.add_parser("find")
     fd.add_argument("words", nargs="+")
     fd.add_argument("--limit", type=int, default=12)
@@ -1640,6 +1672,10 @@ def build_parser():
     hd = sub.add_parser("header")
     hd.add_argument("--file", action="append", help="path, path:line or path:line-line; repeat for each file")
     hd.add_argument("--why", action="append", help="why the file is treated; one per --file")
+    rp = sub.add_parser("reply")
+    rp.add_argument("--contract", action="append", help="a contract involved or being worked on; repeat")
+    rp.add_argument("--text", help="the description, in plain and concise language")
+    rp.add_argument("--option", action="append", help="a numbered proposal for what to do next; repeat")
     h = sub.add_parser("handoff")
     h.add_argument("--stopped-at", required=True)
     h.add_argument("--why")
@@ -1652,11 +1688,18 @@ def build_parser():
 def main():
     a = build_parser().parse_args()
     root = Path(a.root).resolve()
+    if a.cmd == "reply":  # the reply format also works before a workspace exists
+        try:
+            ctx = Ctx(find_workspace(root, a.workspace), root, Path(__file__).resolve().parent)
+        except SystemExit:
+            ctx = None
+        sys.exit(cmd_reply(ctx, a))
     ctx = Ctx(find_workspace(root, a.workspace), root, Path(__file__).resolve().parent)
     handlers = {"verify": cmd_verify, "ticket": cmd_ticket, "clause": cmd_clause, "edge": cmd_edge,
                 "files": cmd_files, "root": cmd_root, "contract": cmd_contract, "scope": cmd_scope,
                 "summary": cmd_summary, "handoff": cmd_handoff, "quote": cmd_quote, "find": cmd_find,
-                "which-contracts": cmd_which, "check-quotes": cmd_check_quotes, "flow": cmd_flow, "header": cmd_header}
+                "which-contracts": cmd_which, "check-quotes": cmd_check_quotes, "flow": cmd_flow, "header": cmd_header,
+                "reply": cmd_reply}
     if a.cmd == "lint":
         errors, zones, _, _ = run_lint(ctx)
         sys.exit(1 if errors or zones else 0)

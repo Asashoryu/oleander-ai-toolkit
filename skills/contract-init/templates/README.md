@@ -261,12 +261,13 @@ One script, `contract-tools.py` in the tests folder, run from the project root. 
 | `clause remove <contract> <name>` | Removes the rows and the file, and makes an open ticket on it `obsolete` |
 | `ticket new\|log\|status\|direction\|reopen\|list\|sweep` | The only way to write tickets (see **Ticket format**) |
 | `scope add\|clear\|list` | Keeps `scope.txt` |
-| `quote <contract>#<clause>` or `quote --all <contract>` | Prints the exact text of a clause as a quote, with the `path:line` of the contract |
+| `quote <contract>#<clause>` or `quote --all <contract>` | Prints the exact text of a clause as a quote, with the `path:line` of the contract. `--chat` is for a chat reply: the reference is a markdown link that opens the contract rendered; never use it in a ticket, handoff or contract |
 | `find <words>` | Searches clauses, purposes, notes and tickets for the words; each hit is printed as a quote. Exit 3 (`UNCONTRACTED ZONE`) when nothing matches |
 | `which-contracts <path>...` or `--changed` | The leaf contracts that govern each file, with their clauses as quotes. Exit 3 for a file of the contracted domain that no contract governs; `OUTSIDE DOMAIN` for one outside it. `--changed` checks the files changed since `HEAD` and the untracked ones |
 | `check-quotes [file...]` | Checks every quote block in contracts, tickets, handoffs and this README against the contracts. The lint runs it on all of them |
 | `flow start <name>\|step <n> <title> [--of N]\|set [--name N] [--contract c#k] [--ticket T]\|stop` | Keeps the position of the flow in `flow.json` |
 | `header --file <path[:lines]> --why <note> ...` | Prints the position header from `flow.json` and the contracts; exit 3 and no header if a file is an uncontracted zone |
+| `reply --contract <name>... --text <description> --option <proposal>...` | Prints the one fixed format of a reply: the contracts involved after 📄, a line, the description, a line, the numbered proposals. Works without a workspace too (names are then plain text) |
 | `summary` | Tickets by status and direction, scope, lint result, and whether anything is open |
 | `handoff --stopped-at S [--why W --decisions D --next N --skills K]` | Writes the handoff file with the fixed sections, scope and tickets filled in |
 
@@ -281,20 +282,18 @@ quote — auth_session#session_expires (contracts/auth_session.md:42)
 
 The text under `>` must be the clause's exact text; it may end with `…` only if what is kept is identical. The lint (`check-quotes`) fails a quote in a contract, ticket, handoff or this README whose reference does not exist or whose text differs, naming the file and line of the quote. A paraphrase is not a quote and is not written in this form. The line number is where the clause was when the quote was printed: it is not checked, because editing a contract moves lines.
 
-Every reply of the agent about the system starts with the **position header** printed by `contract-tools header`:
+Every reply of the agent about the system is printed by `contract-tools reply`, and has this format and no other rule of form: the names of the contracts involved after 📄, each a link that opens its `.md` file, a line, a short description in plain language, a line, then numbered proposals for what to do next.
 
 ```
-📍 flow: contract-refine · step: 3 of 5 — write clauses
-contract: auth_session#session_expires (contracts/auth_session.md:42)
-ticket: T-timeout_too_long
-scope: 4 entries
-files:
-  src/auth/session.py:18-31 → expiry time (governed by auth_session)
+📄 [auth_session](contracts/auth_session.md), [security](contracts/security.md)
+────────────────────────────────────────────────
+The code never expires a session, while the contract says it must after 30 minutes.
+────────────────────────────────────────────────
+1. Open a ticket to fix the code
+2. Change the contract
 ```
 
-A field with no value is `—`. A file in an uncontracted zone gets no header: it is covered first with `contract-reverse` or `contract-refine`.
-
-**Limits.** Nothing checks a chat reply automatically; the header printed by the tool and the rules in the skills are what keep the agent on the contracts' words. The checks that do run on their own are the lint on every document, and the **Hooks** setting for the files that change (`contract-tools which-contracts --changed` can be added there next to the lint).
+**Limits.** Nothing checks a chat reply automatically; the format printed by the tool and the rules in the skills are what keep the agent on the contracts' words. The checks that do run on their own are the lint on every document, and the **Hooks** setting for the files that change (`contract-tools which-contracts --changed` can be added there next to the lint).
 
 ## Ticket format
 

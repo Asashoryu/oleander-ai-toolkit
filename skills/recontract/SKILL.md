@@ -7,6 +7,8 @@ description: Build or reorganise the contract graph. Creates it from requirement
 
 Changes the **structure** of the contract graph: which contracts exist, which contracts each one `implements` and `enforces`, and which files the leaves enforce. Contracts live in one flat folder; relations are written only in the headers. Changing the content of a few contracts is out of scope; documenting existing code is the job of reverse contracting.
 
+While the flow is active, your replies and reports use the format of `contract-flow` (**Reply format**), printed by `contract-tools reply`.
+
 ## Before starting
 
 Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Names**, **Contract graph**, **Contract format** (with **Verification** and **Lint**) sections are binding. If there is no workspace, say so and stop.

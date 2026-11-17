@@ -7,6 +7,8 @@ description: Write one detailed contract from sources you list (code files, exis
 
 Turns a list of **sources** into **one** contract. The sources are the source of truth here: the contract describes what they say or do today, in full, so that a person can understand the part without opening them. To cover a larger part of a repository, the flow calls this skill once per part, and then `recontract` groups the resulting contracts under parents.
 
+While the flow is active, your replies and reports use the format of `contract-flow` (**Reply format**), printed by `contract-tools reply`.
+
 ## Before starting
 
 Read the workspace `README.md` (find it through the `Contract-flow workspace:` line in `CLAUDE.md`/`AGENTS.md`). Its **Names**, **Contract graph**, **Contract format** (with **Verification** and **Lint**) sections are binding. If there is no workspace, say so and stop.

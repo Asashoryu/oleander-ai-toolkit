@@ -35,11 +35,10 @@ All state lives in the workspace (contracts in one flat folder with a generated 
 
 These rules hold from the moment `/contract-flow` starts until the user stops it.
 
-### Position and citations
+### Citations
 
-You and the user must never lose where you are, and every word of yours about the system rests on a contract's words.
+Every word of yours about the system rests on a contract's words.
 
-- **Position header.** Every reply that talks about the system or touches a file starts with the block printed by `contract-tools header --file <path[:lines]> --why "<note>"` (one `--file` and `--why` per file treated, with the lines the words refer to). Paste it as printed; never write or edit it. It shows flow, step, contract and clause with their `path:line`, ticket, scope, and each file with its lines and why. The tool reads the flow state you keep with `contract-tools flow start <name>` when the flow starts, `flow step <n> <title> --of <total>` at every step, `flow set --contract <c>#<k> --ticket <T-name>` when the focus changes, and `flow stop` when the user stops. Without a block printed by the tool, give no answer on the merits and make no change to the code. If `header` ends with `UNCONTRACTED ZONE`, follow **No contract covers it**.
 - **Quotes.** What a contract says is shown only as a **quote**, printed by `contract-tools quote <contract>#<clause>` (or `quote --all <contract>`), never written from memory and never paraphrased as if it were one:
 
   ```
@@ -47,8 +46,44 @@ You and the user must never lose where you are, and every word of yours about th
   > The token expires after 15 minutes.
   ```
 
+  In chat, print it with `contract-tools quote --chat <contract>#<clause>`: the reference becomes a link that opens the contract rendered, and the text is the same.
+
+  ```
+  📄 quote — [auth_session#session_expires](contracts/auth_session.md) · riga 42
+  > The token expires after 15 minutes.
+  ```
+
+  In tickets, handoffs and contracts use the plain form above, without `--chat`.
+
   The text must be the clause's exact text; it may be cut with `…` only if what is kept is identical. In tickets, handoffs and contracts the lint (`check-quotes`) rejects a quote that differs from its contract. In chat nothing checks it for you, so use the tool's output.
 - **Names are words.** Contracts, clauses and tickets are named with words (`auth_session#session_expires`, `T-timeout_too_long`); never refer to them by number or code.
+
+### Reply format
+
+Every reply while the flow is active is printed by `contract-tools reply`, never typed by hand. It is the only rule of form: apart from it, write as you naturally would, with ordinary words, sentences and formatting.
+
+```
+contract-tools reply --contract <name>... --text "<description>" --option "<proposal>"...
+```
+
+Before a workspace exists (step 0, or a project not yet set up), `contract-tools.py` is not in the project: run the copy shipped with `contract-init` instead, `python3 -I ../contract-init/templates/contract-tools.py reply ...` (path relative to this skill). It needs no workspace; with none, the contract names are plain text, not links. Never skip the format: if the tool cannot run at all, write the same five parts by hand.
+
+```
+📄 [auth_session](contracts/auth_session.md), [security](contracts/security.md)
+────────────────────────────────────────────────
+The code never expires a session, while the contract says it must after 30 minutes.
+────────────────────────────────────────────────
+1. Open a ticket to fix the code
+2. Change the contract
+```
+
+1. After 📄, the names of the contracts involved and being worked on, each a link to its `.md` file, so a click opens it.
+2. A line.
+3. A description of the output in plain, human, concise language.
+4. A line.
+5. Numbered proposals for what to do next.
+
+The same format applies to what the other skills of this flow tell the user.
 
 ### Statement check
 
@@ -61,11 +96,11 @@ This procedure runs before answering any question or request about the system wh
    - `contradicts`: show the quote that contradicts it and the code (path and line), then ask whether to change the contract (`contract-refine`) or drop the request. Do not carry the request out.
    - `undecidable`: the quotes neither allow nor forbid it; show them and ask the user, then refine or open a ticket.
 4. **Differences between contract and code.** When the user is right and the contract is outdated, propose `contract-refine` with the code as evidence; when the contract and the code disagree with each other, open the ticket. Never accept a statement that contradicts a quote, and never change a contract because the user said so without showing the quote and the code. If the user declines or postpones a proposal, open the ticket anyway (direction `contract` or `code`): nothing found stays only in the conversation.
-5. **Show the work.** The reply starts with the position header, then the outcome line and the quotes it rests on.
+5. **Show the work.** Print the reply with `contract-tools reply`: the description says the outcome (compatible, contradicts, undecidable) and shows the quotes it rests on, as printed by `contract-tools quote`.
 
 ### No contract covers it
 
-When `find` or `which-contracts` finds nothing, or `header` ends with `UNCONTRACTED ZONE`, say `uncontracted zone`, name the file or the words, and stop: no answer on the merits and no change to the code. Offer only these ways forward:
+When `find` or `which-contracts` finds nothing, or `which-contracts` ends with `UNCONTRACTED ZONE`, say `uncontracted zone`, name the file or the words, and stop: no answer on the merits and no change to the code. Offer only these ways forward:
 - code that exists: `contract-reverse` on it;
 - a new requirement: `contract-refine` (or `recontract` if it needs new contracts), whose `clause add --ticket` writes the clause, a failing stub and its ticket together.
 

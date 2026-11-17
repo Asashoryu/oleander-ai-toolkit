@@ -9,6 +9,7 @@ body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 var(--serif);-
 .kicker{font:600 12px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
 .hero h1{font:600 clamp(32px,5vw,52px)/1.1 var(--serif);margin:.25em 0 .2em;letter-spacing:-.01em}
 .sub{color:var(--muted);font:15px var(--sans)}
+.hero .goal{margin:.8em 0 0;max-width:46em;font:italic 17px/1.5 var(--serif)}
 #theme{position:absolute;top:22px;right:28px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:999px;padding:6px 14px;font:13px var(--sans);cursor:pointer}
 .layout{max-width:1240px;margin:0 auto;padding:12px 28px 80px;display:grid;grid-template-columns:210px minmax(0,1fr) 300px;gap:44px;align-items:start}
 nav#toc{position:sticky;top:24px;font:14px/1.4 var(--sans);max-height:calc(100vh - 48px);overflow:auto}

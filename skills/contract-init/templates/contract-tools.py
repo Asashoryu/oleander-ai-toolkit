@@ -9,7 +9,7 @@ Commands
     lint                          check every contract and ticket, regenerate links blocks and INDEX.md
     verify [--contract ID ...]    run every scripted verification, report ai-check and covered-by as to judge
     ticket new|log|status|direction|reopen|list|sweep
-    clause add|rename|remove      edit the Clauses and Verification tables and the verification files
+    clause add|enforced-on|rename|remove  edit the Clauses and Verification tables and the verification files
     edge add|remove               write an implements/enforces edge on both sides
     files add|remove              add or remove a file in the `enforces` of a leaf contract
     contract new|rename           create a skeleton, or rename a contract everywhere
@@ -38,7 +38,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-VERSION = 10  # raise it whenever this tool or the README format changes
+VERSION = 20  # raise it whenever this tool or the README format changes
 TYPES = {"unit", "interface", "integration", "end-to-end", "script", "ai-check", "covered-by"}
 SCRIPT_TYPES_NOT = {"ai-check", "covered-by"}
 SECTIONS = ["Purpose", "View", "Clauses", "Verification", "Notes"]
@@ -48,6 +48,8 @@ END = "<!-- contract-links:end -->"
 TODO = "_to be written_"
 STUB = "not written yet"
 MAX_LINES, MAX_ENFORCED = 300, 15
+PARENT_MARK, OWN_MARK = "🟢", "🟡"  # before a cited clause: a parent's clause this contract enforces / one of its own
+MAX_RANK_WIDTH, MAX_PARTICIPANTS = 4, 5  # a View diagram grows downwards: at most this many nodes side by side
 
 STATUSES = {"open", "resolved", "rerouted", "obsolete"}
 DIRECTIONS = {"code", "contract", "escalate"}
@@ -92,6 +94,64 @@ def front_matter(text):
     return data, m.group(2)
 
 
+ARROW = re.compile(r"\s*(?:<?[-=.~]{2,}[>xo]?|--\s*[^->=]*?\s*-->)\s*")
+
+
+def mermaid_shape(code):
+    """Problems that make a diagram wider than tall: a horizontal direction, too many nodes side by side."""
+    out = []
+    lines = [l.strip() for l in code.splitlines() if l.strip() and not l.strip().startswith("%%")]
+    if lines and lines[0] == "---":  # a front matter block
+        lines = lines[lines.index("---", 1) + 1:] if "---" in lines[1:] else lines
+    head = lines[0] if lines else ""
+    kind = head.split()[0] if head else ""
+    for l in lines:
+        m = re.match(r"^(?:flowchart|graph|direction)\s+(LR|RL)\b|^direction\s+(LR|RL)\b", l)
+        if m:
+            out.append(f"`{m.group(1) or m.group(2)}` grows sideways: use `TD` so the diagram grows downwards")
+    if kind in ("flowchart", "graph"):
+        edges, nodes = [], []
+        for l in lines[1:]:
+            if re.match(r"^(subgraph|end|classDef|class|style|linkStyle|click|direction)\b", l):
+                continue
+            plain = re.sub(r'"[^"]*"|\[[^\]]*\]|\([^)]*\)|\{[^}]*\}|\|[^|]*\|', "", l)
+            chain = [[x for x in re.findall(r"[A-Za-z_]\w*", part)] for part in ARROW.split(plain)]
+            chain = [c for c in chain if c]
+            for c in chain:
+                nodes += c
+            for a, b in zip(chain, chain[1:]):
+                edges += [(x, y) for x in a for y in b]
+        rank = {n: 0 for n in nodes}
+        for _ in range(len(rank)):  # longest path, a cycle just stops the relaxation
+            moved = False
+            for a, b in edges:
+                if a != b and rank[b] < rank[a] + 1 and rank[a] + 1 < len(rank):
+                    rank[b], moved = rank[a] + 1, True
+            if not moved:
+                break
+        width = {}
+        for r in rank.values():
+            width[r] = width.get(r, 0) + 1
+        if width and max(width.values()) > MAX_RANK_WIDTH:
+            out.append(f"{max(width.values())} nodes side by side (at most {MAX_RANK_WIDTH}): chain them or split the diagram in two")
+    elif kind == "sequenceDiagram":
+        who = {m.group(1) for l in lines for m in [re.match(r"^(?:participant|actor)\s+(\w+)", l)] if m}
+        if len(who) > MAX_PARTICIPANTS:
+            out.append(f"{len(who)} participants side by side (at most {MAX_PARTICIPANTS}): split the diagram in two")
+    return out
+
+
+def prose_words(text):
+    """Words of natural-language text: code blocks, table rows and headings do not count."""
+    n, in_code = 0, False
+    for line in text.splitlines():
+        if line.startswith("```") or line.startswith("~~~"):
+            in_code = not in_code
+        elif not in_code and not re.match(r"^\s*(\||#)", line):
+            n += len(re.findall(r"\w+", re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", line)))
+    return n
+
+
 def sections(body):
     """List of (title, content) for top-level `## ` headings, ignoring code blocks."""
     out, cur, in_code = [], None, False
@@ -106,14 +166,35 @@ def sections(body):
     return [(t, "\n".join(c)) for t, c in out]
 
 
+ANCHOR = re.compile(r'<a id="[^"]*"></a>')
+
+
 def table_rows(content, keep_ticks=False):
     """Rows of the first table, header dropped. Backticks around a cell are removed unless keep_ticks."""
     rows = []
     for line in content.splitlines():
         line = line.strip()
         if line.startswith("|") and not re.match(r"^\|[\s:|-]+\|?$", line):
-            rows.append([c.strip() if keep_ticks else c.strip().strip("`") for c in line.strip("|").split("|")])
+            cells = [ANCHOR.sub("", c).strip() for c in line.strip("|").split("|")]
+            rows.append(cells if keep_ticks else [c.strip("`") for c in cells])
     return rows[1:] if rows else []
+
+
+def clause_on_table(content):
+    """(has the Enforced on column, {clause: [contract ids]}) of the Clauses table. `-` means none."""
+    rows, has = {}, False
+    first = True
+    for line in content.splitlines():
+        line = line.strip()
+        if not line.startswith("|") or re.match(r"^\|[\s:|-]+\|?$", line):
+            continue
+        cells = [ANCHOR.sub("", c).strip().strip("`").strip() for c in line.strip("|").split("|")]
+        if first:
+            has, first = len(cells) >= 3 and cells[2].lower() == "enforced on", False
+            continue
+        on = cells[2] if len(cells) >= 3 else ""
+        rows[cells[0]] = [x.strip().strip("`") for x in on.split(",") if x.strip() and x.strip() not in ("-", "—")]
+    return has, rows
 
 
 def strip_fences(text):
@@ -141,7 +222,9 @@ def slug(heading):
 
 def anchors(path):
     try:
-        return {slug(m.group(1)) for m in re.finditer(r"^#{1,6}\s+(.*?)\s*$", strip_fences(path.read_text(encoding="utf-8")), re.M)}
+        text = path.read_text(encoding="utf-8")
+        return ({slug(m.group(1)) for m in re.finditer(r"^#{1,6}\s+(.*?)\s*$", strip_fences(text), re.M)}
+                | {m.group(1) for m in re.finditer(r'<a id="([^"]+)"></a>', text)})
     except OSError:
         return set()
 
@@ -312,8 +395,29 @@ def lint_contract(ctx, path, cid, ids, errors):
             err(f"section {t} is not written yet")
 
     view = content["View"]
-    if not ("```" in view or re.search(r"^\s*\|\s*[-:]+", view, re.M)):
-        err("View has no diagram, table or tree")
+    fm["_view"] = view
+    diagrams, other_code, tables, in_code, kind, blocks = 0, False, False, False, "", []
+    for line in view.splitlines():
+        if line.startswith("```") or line.startswith("~~~"):
+            if not in_code:
+                kind = line.lstrip("`~").strip().lower()
+                diagrams += kind == "mermaid"
+                other_code = other_code or kind != "mermaid"
+                blocks.append([])
+            in_code = not in_code
+        elif in_code and kind == "mermaid":
+            blocks[-1].append(line)
+        elif not in_code and re.match(r"^\s*\|", line):
+            tables = True
+    for i, b in enumerate(blocks, 1):
+        for problem in mermaid_shape("\n".join(b)):
+            err(f"View diagram {i}: {problem}")
+    if tables or other_code:
+        err("View holds only explanatory text and `mermaid` diagrams: a table, a tree or a snippet is a clause (`contract-tools clause add`)")
+    if not diagrams and TODO not in view:
+        err("View has no `mermaid` diagram")
+    if TODO not in view and TODO not in content["Purpose"] and prose_words(view) <= prose_words(content["Purpose"]):
+        err("View has no natural-language description more detailed than the Purpose (the Purpose is the short non-technical summary)")
 
     clauses = []
     for row in table_rows(content["Clauses"]):
@@ -326,6 +430,17 @@ def lint_contract(ctx, path, cid, ids, errors):
     if not clauses:
         err("Clauses has no rows")
     fm["_clauses"] = clauses
+    has_on, on = clause_on_table(content["Clauses"])
+    fm["_on"] = on
+    if not fm["_leaf"]:
+        if not has_on:
+            err("the Clauses table of a contract that enforces contracts needs a third column `Enforced on` (`contract-tools clause enforced-on`)")
+        else:
+            for n in clauses:
+                if not on.get(n):
+                    err(f"clause `{n}` is not enforced on any contract: list them in `Enforced on`")
+    elif any(on.values()):
+        err("a contract that enforces files has no `Enforced on`: its clauses are enforced on its files")
 
     types, seen, vfiles, rows = ctx.types(), {}, [], {}
     for row in table_rows(content["Verification"]):
@@ -357,6 +472,18 @@ def lint_contract(ctx, path, cid, ids, errors):
     return fm
 
 
+def descendants(fms, cid):
+    """Every contract that `cid` enforces, directly or through other contracts."""
+    seen, todo = set(), [c for c in fms.get(cid, {}).get("enforces") or [] if not is_path(c)]
+    while todo:
+        c = todo.pop()
+        if c in seen:
+            continue
+        seen.add(c)
+        todo += [x for x in fms.get(c, {}).get("enforces") or [] if not is_path(x)]
+    return seen
+
+
 def lint_graph(fms, errors):
     """Symmetry, cycles, covered-by references. Return the level of every contract."""
     for cid, fm in fms.items():
@@ -366,8 +493,43 @@ def lint_graph(fms, errors):
         for c in fm.get("enforces") or []:
             if not is_path(c) and c in fms and cid not in (fms[c].get("implements") or []):
                 errors.append(f"{cid}: enforces {c}, but {c} does not implement {cid}")
+        view = fm.get("_view")
+        if view is not None and TODO not in view:
+            marks = {}  # reference -> markers written right before it
+            for m in re.finditer(r"(?:(🟢|🟡)\s*)?(?:\[`([a-z0-9_]+#[a-z0-9_]+)`\]\([^)]*\)|`([a-z0-9_]+#[a-z0-9_]+)`)", strip_fences(view)):
+                marks.setdefault(m.group(2) or m.group(3), []).append(m.group(1))
+            want = {f"{cid}#{n}": OWN_MARK for n in fm.get("_clauses") or []}
+            for p in fm.get("implements") or []:
+                for n, ids in (fms.get(p, {}).get("_on") or {}).items():
+                    if cid in ids:
+                        want[f"{p}#{n}"] = PARENT_MARK
+            for ref, mark in want.items():
+                got = marks.get(ref)
+                kind = "its own clause" if mark == OWN_MARK else f"a clause of {ref.split('#')[0]} enforced on {cid}"
+                if not got:
+                    errors.append(f"{cid}: the View does not cite `{ref}`, {kind}: cite it as {mark} `{ref}` where the View explains it" + (", the Clauses section then details it" if mark == OWN_MARK else f" and say what {cid} does to enforce it"))
+                elif any(g != mark for g in got):
+                    errors.append(f"{cid}: `{ref}` is {kind}: write {mark} before it, not {next(g or 'nothing' for g in got if g != mark)}")
+        if "_text" in fm:
+            allowed = {cid, *(fm.get("implements") or [])}
+            for title, body in sections(prose(fm["_text"])):
+                if title == "Verification":  # `covered-by` cites the clauses of the enforced contracts
+                    continue
+                for ref in dict.fromkeys(re.findall(r"`([a-z0-9_]+)#[a-z0-9_]+`", body)):
+                    if ref in fms and ref not in allowed:
+                        errors.append(f"{cid}: {title} cites a clause of {ref}, which {cid} does not implement: only its own clauses and those of the contracts it implements may be cited; remove the reference")
         children = {c for c in fm.get("enforces") or [] if not is_path(c)}
+        below = descendants(fms, cid)
+        for n, ids in (fm.get("_on") or {}).items():
+            for c in ids:
+                if c not in fms:
+                    errors.append(f"{cid}: `{n}` is enforced on an unknown contract: {c}")
+                elif c not in below:
+                    errors.append(f"{cid}: `{n}` is enforced on {c}, which {cid} does not enforce (directly or through other contracts)")
         for n, ref in fm.get("_covers", []):
+            m0 = re.match(r"^([a-z0-9_]+)#", ref)
+            if m0 and fm.get("_on", {}).get(n) and m0.group(1) not in fm["_on"][n]:
+                errors.append(f"{cid}: `{n}` is covered-by `{ref}`, but {m0.group(1)} is not in its `Enforced on`")
             m = re.match(r"^([a-z0-9_]+)#([a-z0-9_]+)$", ref)
             if not m or m.group(1) not in children or m.group(2) not in (fms[m.group(1)].get("_clauses") or []):
                 errors.append(f"{cid}: `{n}` is covered-by `{ref}`, which is not a clause of an enforced contract")
@@ -456,8 +618,9 @@ def write_links(ctx, fms, level):
                 ver.append(f"`{n}` covered by " + ", ".join(sorted({f"[{r.split('#')[0]}]({r.split('#')[0]}.md)" for r in re.split(r"[,\s]+", file) if '#' in r})))
             else:
                 ver.append(f"[`{file}`]({rel(ctx.tests / file, base)})")
-        block = (f"{START}\n> **Level** {level.get(cid, '?')} · **Implements:** {up}\n> **Enforces:** {down}\n"
-                 f"> **Verified by:** {' · '.join(ver) or 'nothing yet'}\n{END}")
+        # one list item per field: consecutive `>` lines would be joined into one paragraph by markdown
+        block = (f"{START}\n> **Level** {level.get(cid, '?')}\n>\n> - **Implements:** {up}\n> - **Enforces:** {down}\n"
+                 f"> - **Verified by:** {' · '.join(ver) or 'nothing yet'}\n{END}")
         f = ctx.cpath(cid)
         text = f.read_text(encoding="utf-8")
         if START in text and END in text:
@@ -626,7 +789,99 @@ def load_all(ctx):
     return ids, fms, errors
 
 
+TOKENS = re.compile(r"(\[[^\]]*\]\([^)]*\)|<a [^>]*></a>|`[^`\n]*`)")
+
+
+def link_cell(text, known, terms):
+    """Turn a clause reference (`contract#clause`) and every use of a term of the Notes into a link to the section that defines it
+    (Clauses or Notes: every renderer knows a heading, none can be trusted with an anchor inside a table). Existing links are left as they are."""
+    ids = {t.lower() for t in terms}
+    pat = re.compile(r"(?<![\w-])(?:" + "|".join(re.escape(t) for t in sorted(terms, key=len, reverse=True)) + r")(?![\w-])", re.I) if terms else None
+    out = []
+    for i, part in enumerate(TOKENS.split(text)):
+        if i % 2 == 0:
+            out.append(pat.sub(lambda m: f"[{m.group(0)}](#notes)", part) if pat else part)
+            continue
+        inner = part[1:-1] if part.startswith("`") else None
+        m = re.fullmatch(r"([a-z0-9_]+)#([a-z0-9_]+)", inner) if inner is not None else None
+        if m and m.group(2) in known.get(m.group(1), ()):
+            out.append(f"[{part}]({m.group(1)}.md#clauses)")
+        elif inner is not None and inner.lower() in ids:
+            out.append(f"[{part}](#notes)")
+        else:
+            out.append(part)
+    return "".join(out)
+
+
+def link_contract(text, known, own=None):
+    """Anchor every clause and every term of the Notes where it is defined, and link every use of them in the prose."""
+    lines = text.split("\n")
+    s, e = section_span(lines, "Notes")
+    terms = [r[0] for r in table_rows("\n".join(lines[s:e])) if r and r[0] and TODO not in r[0]] if s is not None else []
+    out, in_code, in_block, section, header_seen = [], False, False, None, False
+    for line in lines:
+        st = line.strip()
+        if line.startswith("```") or line.startswith("~~~"):
+            in_code = not in_code
+        if in_code or line.startswith("```") or line.startswith("~~~"):
+            out.append(line)
+            continue
+        if START in line:
+            in_block = True
+        if in_block:
+            out.append(line)
+            in_block = END not in line
+            continue
+        if line.startswith("#"):
+            if line.startswith("## "):
+                section, header_seen = line[3:].strip(), False
+            out.append(line)
+            continue
+        if section in (None, "Verification") or st.startswith(">") or st.startswith("quote —"):
+            out.append(line)
+            continue
+        if st.startswith("|"):
+            if re.match(r"^\|[\s:|-]+\|?$", st) or not header_seen:
+                header_seen = True
+                out.append(line)
+                continue
+            if section in ("Clauses", "Notes"):
+                cells = [c.strip() for c in st.strip("|").split("|")]
+                name = ANCHOR.sub("", cells[0]).strip()
+                plain = name.strip("`")
+                cells[0] = name  # an anchor of an older version is dropped
+                mine = [t for t in terms if t.lower() != plain.lower()] if section == "Notes" else terms
+                for i in range(1, len(cells) if section == "Notes" else min(len(cells), 2)):
+                    cells[i] = link_cell(cells[i], known, mine)
+                out.append("| " + " | ".join(cells) + " |")
+                continue
+            out.append(line)
+            continue
+        out.append(link_cell(line, known, terms) if st else line)
+    new = "\n".join(out)
+    # a clause of this very contract is a link inside the document (a link carrying the file name opens the page again)
+    if own:
+        new = new.replace(f"]({own}.md#clauses)", "](#clauses)")
+    # links of an older version pointed at anchors inside the tables: point them at the sections
+    new = re.sub(r"\]\(([a-z0-9_]*\.md)?#clause-[a-z0-9_]+\)", lambda m: f"]({m.group(1) or ''}#clauses)", new)
+    return re.sub(r"\]\(#term-[a-z0-9-]+\)", "](#notes)", new)
+
+
+def write_anchors_and_links(ctx):
+    texts = {cid: ctx.cpath(cid).read_text(encoding="utf-8") for cid in ctx.contract_ids()}
+    known = {}
+    for cid, t in texts.items():
+        lines = t.split("\n")
+        s, e = section_span(lines, "Clauses")
+        known[cid] = {r[0] for r in table_rows("\n".join(lines[s:e]))} if s is not None else set()
+    for cid, t in texts.items():
+        new = link_contract(t, known, cid)
+        if new != t:
+            ctx.cpath(cid).write_text(new, encoding="utf-8")
+
+
 def run_lint(ctx, quiet=False):
+    write_anchors_and_links(ctx)
     ids, fms, errors = load_all(ctx)
     level = lint_graph(fms, errors)
     stale_verifications(ctx, fms, errors)
@@ -921,7 +1176,7 @@ def drop_table_row(text, title, name):
     s, e = section_span(lines, title)
     if s is None:
         return text
-    keep = [l for i, l in enumerate(lines) if not (s <= i < e and l.strip().startswith("|") and re.match(rf"^\|\s*`?{re.escape(name)}`?\s*\|", l.strip()))]
+    keep = [l for i, l in enumerate(lines) if not (s <= i < e and l.strip().startswith("|") and re.match(rf"^\|\s*(?:<a id=\"[^\"]*\"></a>)?`?{re.escape(name)}`?\s*\|", l.strip()))]
     return "\n".join(keep)
 
 
@@ -976,6 +1231,12 @@ def cmd_clause(ctx, a):
             sys.exit(f"{a.contract} already has a clause {a.name}")
         if a.type not in ctx.types():
             sys.exit(f"type must be one of {sorted(ctx.types())}")
+        on = [x for x in (a.on or "").split(",") if x]
+        non_leaf = any(not is_path(e) for e in fm.get("enforces") or [])
+        if non_leaf and not on:
+            sys.exit("--on is required: the contracts, below this one, the clause is enforced on (comma separated)")
+        if on and not non_leaf:
+            sys.exit("--on is only for a contract that enforces contracts: a leaf clause is enforced on its files")
         if a.type == "covered-by":
             if not a.covers:
                 sys.exit("--covers is required for covered-by: a comma separated list of <contract>#<clause>")
@@ -993,7 +1254,12 @@ def cmd_clause(ctx, a):
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_text(stub_text(Path(target).suffix, f"{a.contract}#{a.name}"), encoding="utf-8")
                 print(f"created the stub {target} (it fails until it is written)")
-        text = add_table_row(text, "Clauses", f"| `{a.name}` | {a.text} |")
+        if non_leaf:
+            if not clause_on_table(dict(sections(front_matter(text)[1])).get("Clauses", ""))[0]:
+                text = set_enforced_on(text, {})
+            text = add_table_row(text, "Clauses", f"| `{a.name}` | {a.text} | {', '.join(on)} |")
+        else:
+            text = add_table_row(text, "Clauses", f"| `{a.name}` | {a.text} |")
         text = add_table_row(text, "Verification", f"| `{a.name}` | {a.type} | {a.proves or a.text} | `{target}` |")
         p.write_text(text, encoding="utf-8")
         if a.ticket:
@@ -1003,6 +1269,15 @@ def cmd_clause(ctx, a):
                 "conflict": f"- [{a.contract}]({rel(ctx.cpath(a.contract), ctx.tix)}): \"{a.text}\"\n- the enforced files do not satisfy it yet",
                 "verification": f"{vf} is a stub that fails until it is written.",
                 "proposal": "code: write the code that satisfies the clause, and the verification."})
+    elif a.ccmd == "enforced-on":
+        if a.name not in clauses:
+            sys.exit(f"{a.contract} has no clause {a.name}")
+        if not any(not is_path(e) for e in fm.get("enforces") or []):
+            sys.exit("a leaf clause is enforced on its files: `Enforced on` is only for a contract that enforces contracts")
+        on = [x for x in a.on.split(",") if x]
+        if not on:
+            sys.exit("--on needs at least one contract")
+        p.write_text(set_enforced_on(text, {a.name: on}), encoding="utf-8")
     elif a.ccmd == "rename":
         if a.old not in clauses:
             sys.exit(f"{a.contract} has no clause {a.old}")
@@ -1018,7 +1293,7 @@ def cmd_clause(ctx, a):
                 src.rename(dst)
                 if dst.suffix == ".md":
                     dst.write_text(dst.read_text(encoding="utf-8").replace(f"{a.contract}#{a.old}", f"{a.contract}#{a.new}"), encoding="utf-8")
-        text = re.sub(rf"^(\|\s*`){re.escape(a.old)}(`\s*\|)", rf"\g<1>{a.new}\g<2>", text, flags=re.M)
+        text = re.sub(rf"^(\|\s*(?:<a id=\"[^\"]*\"></a>)?`){re.escape(a.old)}(`\s*\|)", rf"\g<1>{a.new}\g<2>", text, flags=re.M)
         if new_file != file:
             text = text.replace(f"`{file}`", f"`{new_file}`")
         p.write_text(text, encoding="utf-8")
@@ -1094,6 +1369,37 @@ def retarget(ctx, t, old, new):
     return t.replace(f"]({old}.md", f"]({new}.md").replace(f"contracts/{old}.md", f"contracts/{new}.md")
 
 
+def clause_head(non_leaf):
+    return "| Name | Clause | Enforced on |\n|---|---|---|" if non_leaf else "| Name | Clause |\n|---|---|"
+
+
+def set_enforced_on(text, updates):
+    """Give the Clauses table its `Enforced on` column and set the contracts of the named clauses; the others keep theirs, or `-`."""
+    lines = text.split("\n")
+    s, e = section_span(lines, "Clauses")
+    if s is None:
+        sys.exit("no section Clauses")
+    first = True
+    for i in range(s, e):
+        line = lines[i].strip()
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if re.match(r"^\|[\s:|-]+\|?$", line):
+            if len(cells) < 3:
+                lines[i] = "|---|---|---|"
+            continue
+        if first:
+            first = False
+            lines[i] = "| Name | Clause | Enforced on |"
+            continue
+        name = cells[0].strip("`")
+        old = cells[2] if len(cells) >= 3 else "-"
+        new = ", ".join(updates[name]) if name in updates else old
+        lines[i] = f"| {cells[0]} | {cells[1]} | {new} |"
+    return "\n".join(lines)
+
+
 def cmd_contract(ctx, a):
     if a.kcmd == "new":
         if not NAME.match(a.id):
@@ -1106,7 +1412,7 @@ def cmd_contract(ctx, a):
         head = ["---", f"name: {a.name}"] + (["root: yes"] if a.is_root else []) + \
                [f"implements: [{', '.join(imp)}]", "enforces:"] + [f"  - {e}" for e in enf] + ["---"]
         ctx.cpath(a.id).write_text(
-            "\n".join(head) + f"\n\n# {a.name}\n\n## Purpose\n{TODO}\n\n## View\n{TODO}\n\n## Clauses\n\n| Name | Clause |\n|---|---|\n\n"
+            "\n".join(head) + f"\n\n# {a.name}\n\n## Purpose\n{TODO}\n\n## View\n{TODO}\n\n## Clauses\n\n{clause_head(any(not is_path(e) for e in enf))}\n\n"
             f"## Verification\n\n| Name | Type | Proves | File |\n|---|---|---|---|\n", encoding="utf-8")
         for p in imp:
             if ctx.cpath(p).exists():
@@ -1244,17 +1550,32 @@ def clause_info(ctx, cid, clause):
     if s is None:
         return None
     for i in range(s, e):
-        m = re.match(r"^\|\s*`?([a-z0-9_]+)`?\s*\|\s*(.*?)\s*\|?\s*$", lines[i].strip())
-        if m and m.group(1) == clause:
-            return m.group(2), i + 1
+        line = lines[i].strip()
+        if not line.startswith("|") or re.match(r"^\|[\s:|-]+\|?$", line):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if len(cells) >= 2 and ANCHOR.sub("", cells[0]).strip().strip("`") == clause:
+            return re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", cells[1]), i + 1  # a quote is the plain text, links dropped
     return None
+
+
+def clause_on(ctx, cid, clause):
+    """The contracts a clause is enforced on, from the Enforced on column."""
+    p = ctx.cpath(cid)
+    if not p.exists():
+        return []
+    content = dict(sections(front_matter(p.read_text(encoding="utf-8"))[1])).get("Clauses", "")
+    return clause_on_table(content)[1].get(clause, [])
 
 
 def format_quote(ctx, cid, clause, chat=False):
     text, line = clause_info(ctx, cid, clause)
+    on = clause_on(ctx, cid, clause)
     if chat:  # the reference is a markdown link, so a click opens the contract rendered
-        return f"📄 quote — [{cid}#{clause}]({rel(ctx.cpath(cid), ctx.root)}) · riga {line}\n> {text}"
-    return f"quote — {cid}#{clause} ({rel(ctx.cpath(cid), ctx.root)}:{line})\n> {text}"
+        tail = f"\nenforced on: {', '.join(f'[{c}]({rel(ctx.cpath(c), ctx.root)})' for c in on)}" if on else ""
+        return f"📄 quote — [{cid}#{clause}]({rel(ctx.cpath(cid), ctx.root)}) · line {line}\n> {text}{tail}"
+    tail = f"\nenforced on: {', '.join(on)}" if on else ""
+    return f"quote — {cid}#{clause} ({rel(ctx.cpath(cid), ctx.root)}:{line})\n> {text}{tail}"
 
 
 def quote_files(ctx):
@@ -1499,28 +1820,28 @@ def cmd_header(ctx, a):
             sys.exit(f"{f} does not exist")
         shown = re.sub(r"^.*?(?=(:\d|$))", f, raw, count=1) if re.search(r":\d", raw) else f
         if not in_domain(ctx, f):
-            note = "fuori dal dominio contrattato"
+            note = "outside the contracted domain"
         else:
             gov = governors(ctx, fms, f)
             if not gov:
                 print(f"UNCONTRACTED ZONE {f}: no contract governs it, no header: cover it first (contract-reverse or contract-refine)")
                 return NOT_GOVERNED
-            note = "governato da " + ", ".join(gov)
+            note = "governed by " + ", ".join(gov)
         rows.append(f"  {shown} → {why} ({note})")
     where = "—"
     if st.get("contract"):
         cid, clause = st["contract"].split("#")
         info = clause_info(ctx, cid, clause)
-        where = f"{st['contract']} ({rel(ctx.cpath(cid), ctx.root)}:{info[1]})" if info else f"{st['contract']} (clausola non più esistente)"
-    step = "—" if not st.get("step") else f"{st['step']}" + (f" di {st['of']}" if st.get("of") else "") + (f" — {st['title']}" if st.get("title") else "")
+        where = f"{st['contract']} ({rel(ctx.cpath(cid), ctx.root)}:{info[1]})" if info else f"{st['contract']} (clause no longer exists)"
+    step = "—" if not st.get("step") else f"{st['step']}" + (f" of {st['of']}" if st.get("of") else "") + (f" — {st['title']}" if st.get("title") else "")
     sc = scope_items(ctx)
-    print(f"📍 flusso: {st['flow']} · passo: {step}")
+    print(f"📍 flow: {st['flow']} · step: {step}")
     if st.get("contract"):
-        print(f"📄 contratto: {where}")
+        print(f"📄 contract: {where}")
     if st.get("ticket"):
         print(f"ticket: {st['ticket']}")
     if sc:
-        print(f"ambito: {len(sc)} voci")
+        print(f"scope: {len(sc)} entries")
     if rows:
         print("file:")
         for r in rows:
@@ -1531,25 +1852,76 @@ def cmd_header(ctx, a):
 RULE = "─" * 48
 
 
+MD_LINK = re.compile(r"\[[^\]]*\]\([^)]*\)")
+CANDIDATE = re.compile(r"(?<![\w./#`-])(`?)([\w][\w./-]*?)(#[a-z0-9_]+)?(:\d+)?\1(?=[.,;:!?)\]]*(?:\s|$))")
+
+
+def file_target(ctx, token):
+    """The existing file a token names, relative to the project root, or None."""
+    try:
+        p = (ctx.root / token).resolve()
+        if p.is_file() and p.is_relative_to(ctx.root.resolve()):
+            return rel(p, ctx.root)
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def linkify(ctx, text):
+    """Turn every contract name (also `contract#clause`) and every existing file path in a text into a markdown link.
+    Existing links are left alone; without a workspace nothing can be linked."""
+    if not ctx:
+        return text
+    known = set(ctx.contract_ids())
+
+    def one(m):
+        tok, clause = m.group(2), m.group(3)
+        shown = m.group(0)  # a backticked token keeps its backticks inside the link text
+        if tok in known:
+            return f"[{shown}]({rel(ctx.cpath(tok), ctx.root)})"
+        if not clause:
+            target = file_target(ctx, tok)
+            if target:
+                return f"[{shown}]({target})"
+        return shown
+
+    def block(chunk):
+        return CANDIDATE.sub(one, chunk)
+
+    out, last = [], 0
+    for m in MD_LINK.finditer(text):
+        out.append(block(text[last:m.start()]))
+        out.append(m.group(0))
+        last = m.end()
+    out.append(block(text[last:]))
+    return "".join(out)
+
+
 def cmd_reply(ctx, a):
-    """The only fixed format of a reply: the contracts involved, a line, the description, a line, numbered proposals."""
+    """The only fixed format of a reply: the contracts and files involved, a line, the description, a line, numbered proposals.
+    Every contract and file named anywhere in it is a link that opens it."""
     names = a.contract or []
+    files = a.file or []
     if ctx:
         known = set(ctx.contract_ids())
         for n in names:
             if n not in known:
                 sys.exit(f"no contract {n}")
+        for f in files:
+            if not file_target(ctx, f):
+                sys.exit(f"no file {f} under the project root")
     if not a.text or not a.text.strip():
         sys.exit("give the description with --text")
     if not a.option:
         sys.exit("give at least one --option: the proposals for what to do next")
     links = [f"[{n}]({rel(ctx.cpath(n), ctx.root)})" if ctx else n for n in names]
-    print("📄 " + (", ".join(links) if links else "nessun contratto coinvolto"))
+    links += [f"[{f}]({file_target(ctx, f)})" if ctx else f for f in files]
+    print("📄 " + (", ".join(links) if links else "no contract involved"))
     print(RULE)
-    print(a.text.strip())
+    print(linkify(ctx, a.text.strip()))
     print(RULE)
     for i, o in enumerate(a.option, 1):
-        print(f"{i}. {o}")
+        print(f"{i}. {linkify(ctx, o)}")
     return 0
 
 
@@ -1604,9 +1976,15 @@ def build_parser():
     ca.add_argument("--proves")
     ca.add_argument("--file")
     ca.add_argument("--covers")
+    ca.add_argument("--on", help="the contracts below this one that the clause is enforced on, comma separated (only for a contract that enforces contracts)")
     ca.add_argument("--ticket", help="open a code ticket with this name on the new clause")
     ca.add_argument("--actor", default="agent")
     ca.add_argument("--reason")
+    ce = c.add_parser("enforced-on")
+    ce.add_argument("contract")
+    ce.add_argument("name")
+    ce.add_argument("--on", required=True, help="comma separated contracts; also adds the `Enforced on` column to an older table")
+    ce.add_argument("--actor", default="agent")
     cr = c.add_parser("rename")
     cr.add_argument("contract")
     cr.add_argument("old")
@@ -1674,6 +2052,7 @@ def build_parser():
     hd.add_argument("--why", action="append", help="why the file is treated; one per --file")
     rp = sub.add_parser("reply")
     rp.add_argument("--contract", action="append", help="a contract involved or being worked on; repeat")
+    rp.add_argument("--file", action="append", help="a file involved or being worked on; repeat")
     rp.add_argument("--text", help="the description, in plain and concise language")
     rp.add_argument("--option", action="append", help="a numbered proposal for what to do next; repeat")
     h = sub.add_parser("handoff")

@@ -5,7 +5,7 @@ description: Workflow: keep a project's code and its contracts in 1:1 parity, fr
 
 # Contract flow
 
-Every part of the project is documented by a **contract**: readable documentation (tables, diagrams, simple language) that enforces specific files through named **clauses**, each with a declared verification (unit, interface, integration, end-to-end, script or ai-check). Contracts follow one fixed template, checked by the lint (`contract-tools lint`), and leave no grey zone. They form a graph, from roots that document the whole system down to leaves that enforce files, where a contract can have several parents so shared requirements (security, quality) are written once. Every file is covered by a leaf. This workflow loops until every contract conforms, every clause passes and nothing is uncontracted:
+Every part of the project is documented by a **contract**: readable documentation (plain-language text and diagrams) that enforces specific files through named **clauses**, each with a declared verification (unit, interface, integration, end-to-end, script or ai-check). Contracts follow one fixed template, checked by the lint (`contract-tools lint`), and leave no grey zone. They form a graph, from roots that document the whole system down to leaves that enforce files, where a contract can have several parents so shared requirements (security, quality) are written once. Every file is covered by a leaf. This workflow loops until every contract conforms, every clause passes and nothing is uncontracted:
 
 ```
 change contracts (grilling) → parity check → tickets → Mr. Wolf resolves code tickets
@@ -49,7 +49,7 @@ Every word of yours about the system rests on a contract's words.
   In chat, print it with `contract-tools quote --chat <contract>#<clause>`: the reference becomes a link that opens the contract rendered, and the text is the same.
 
   ```
-  📄 quote — [auth_session#session_expires](contracts/auth_session.md) · riga 42
+  📄 quote — [auth_session#session_expires](contracts/auth_session.md) · line 42
   > The token expires after 15 minutes.
   ```
 
@@ -63,10 +63,10 @@ Every word of yours about the system rests on a contract's words.
 Every reply while the flow is active is printed by `contract-tools reply`, never typed by hand. It is the only rule of form: apart from it, write as you naturally would, with ordinary words, sentences and formatting.
 
 ```
-contract-tools reply --contract <name>... --text "<description>" --option "<proposal>"...
+contract-tools reply --contract <name>... --file <path>... --text "<description>" --option "<proposal>"...
 ```
 
-Before a workspace exists (step 0, or a project not yet set up), `contract-tools.py` is not in the project: run the copy shipped with `contract-init` instead, `python3 -I ../contract-init/templates/contract-tools.py reply ...` (path relative to this skill). It needs no workspace; with none, the contract names are plain text, not links. Never skip the format: if the tool cannot run at all, write the same five parts by hand.
+Before a workspace exists (step 0, or a project not yet set up), `contract-tools.py` is not in the project: run the copy shipped with `contract-init` instead, `python3 -I ../contract-init/templates/contract-tools.py reply ...` (path relative to this skill). It needs no workspace; with none, nothing can be linked and names stay plain text. Never skip the format: if the tool cannot run at all, write the same five parts by hand.
 
 ```
 📄 [auth_session](contracts/auth_session.md), [security](contracts/security.md)
@@ -77,11 +77,13 @@ The code never expires a session, while the contract says it must after 30 minut
 2. Change the contract
 ```
 
-1. After 📄, the names of the contracts involved and being worked on, each a link to its `.md` file, so a click opens it.
+1. After 📄, the contracts (`--contract`) and the files (`--file`) involved and being worked on, each a link to its file, so a click opens it.
 2. A line.
 3. A description of the output in plain, human, concise language.
 4. A line.
 5. Numbered proposals for what to do next.
+
+**Every contract and every file you name is a link.** The tool links by itself, in the description and in the proposals, every contract name (also `contract#clause`) and every path of an existing file (also with `:line`), so write them plainly, spelled exactly as the contract id or the path from the project root. A path that does not exist stays plain text: check it before you cite it.
 
 The same format applies to what the other skills of this flow tell the user.
 
@@ -102,7 +104,7 @@ This procedure runs before answering any question or request about the system wh
 
 When `find` or `which-contracts` finds nothing, or `which-contracts` ends with `UNCONTRACTED ZONE`, say `uncontracted zone`, name the file or the words, and stop: no answer on the merits and no change to the code. Offer only these ways forward:
 - code that exists: `contract-reverse` on it;
-- a new requirement: `contract-refine` (or `recontract` if it needs new contracts), whose `clause add --ticket` writes the clause, a failing stub and its ticket together.
+- a new requirement: `contract-refine` (or `recontract` if it needs new contracts), whose `clause add --ticket` writes the clause (with `--on` the contracts it is enforced on, if the contract enforces contracts), a failing stub and its ticket together.
 
 Code outside the contracted domain (`OUTSIDE DOMAIN`) is not governed by the flow and is handled normally.
 
@@ -141,8 +143,9 @@ The flow is strict because it contracts other workflows, which may be as flexibl
   - check a part of the project, or all of it (step 3)
 
 ### 2. Change contracts
-- **Entry:** a new requirement or statement, tickets with direction `contract` / `escalate` or status `rerouted`, or a contract that failed the lint (`contract-tools lint`), is outdated or has a gap (found by the parity check).
+- **Entry:** a new requirement or statement, tickets with direction `contract` / `escalate` or status `rerouted`, or a contract that failed the lint (`contract-tools lint`), is outdated or has a gap (found by the parity check). A contract fails the lint for the rules of its View (text and diagrams that grow downwards, citing its clauses and the parent clauses enforced on it) and of its clauses (`Enforced on`) as for any other.
 - **Invoke:** `contract-refine`. If the change is structural or a contract needs a new level, invoke `recontract`. If it is about code that has no contract, invoke `contract-reverse`.
+- **Many contracts fail at once** (typically after `contract-init` updated the tool): `contract-refine` them in this order, because the rules depend on each other. First the `Enforced on` of every contract that enforces contracts (`clause enforced-on`), since the Views cite the parent clauses it lists; then each View, which must be text and downward `mermaid` diagrams only (a table, tree or snippet becomes a clause), must cite every own clause (🟡 before it) and every parent clause enforced on it (🟢 before it), and say what the contract does for each. Re-run the lint after each contract.
 - **Output:** changed contracts and verifications, added to the scope.
 
 ### 3. Parity check

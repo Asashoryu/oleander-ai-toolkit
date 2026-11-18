@@ -58,7 +58,7 @@ A clause whose verification is missing is off-template (the lint already caught 
 
 For each conforming contract in scope:
 - **Implements**: it contradicts no clause of any contract it `implements` (every parent), and every clause of a contract that enforces contracts is covered by clauses of those contracts.
-- **Completeness (`ai-check`)**: read the enforced files and look for anything they do, expose, accept, return or refuse that no clause covers, or that the View does not show. Name each gap. A contract made of headings and a few lines is a gap. Gaps are never code tickets: they go to `contract-refine`.
+- **Completeness (`ai-check`)**: read the enforced files and look for anything they do, expose, accept, return or refuse that no clause covers, or that the View does not show. For every clause the View cites (its own and its parents' enforced on it), judge that the View says what the contract does about it, not just names it; a bare citation is a gap. Name each gap. A contract made of headings and a few lines is a gap. Gaps are never code tickets: they go to `contract-refine`.
 - **Size**: the lint reports a contract that is too large; propose a new level.
 - **Notes**: terms used without explanation and missing from **Notes**.
 

@@ -23,7 +23,7 @@ flowchart LR
 | Something the parts do or expose has no clause (a gap) | `contract-refine` |
 | The code breaks a clause | `parity-check`, then a code ticket, solved by Mr. Wolf |
 
-1. A **contract** documents one part of the project: what it is for, how it works (shown with diagrams and tables), and the **clauses** that bind the parts it enforces. It is written to be read by a person, not only checked by a tool.
+1. A **contract** documents one part of the project: what it is for, how it works (told in plain language and shown with diagrams), and the **clauses** that bind the parts it enforces. It is written to be read by a person, not only checked by a tool.
 2. A contract leaves **no grey zone**: everything the parts do, expose, accept, return or must never do is covered by a clause, or declared out of the contract with the reason.
 3. Contracts form a **graph**: a root documents the whole system, the contracts it enforces document its parts, down to leaves that enforce files. A contract can implement more than one parent, so a shared requirement (security, code quality) is written once. Every file of the contracted domain is enforced by some leaf contract.
 4. Every clause has a **verification**: how it is proven, with a type chosen from a closed list. A clause that cannot be verified is not accepted.
@@ -98,7 +98,7 @@ flowchart TD
 - **Files or contracts, never both.** Paths contain `/` or `.` (folders end with `/`); anything else is a contract ID.
 - **No cycles.** Several parents are allowed. A requirement shared by many contracts (security, quality) is a contract that all of them implement.
 - **Level of abstraction** is not written anywhere: the lint computes it as the distance from the roots (the longest chain upwards) and shows it in `INDEX.md`.
-- **Navigation.** The lint writes, under the title of every contract, a block with its level and links to the contracts it implements and enforces, and it writes `contracts/INDEX.md` with the map, the levels and a table file → leaf contract. Never edit these by hand.
+- **Navigation.** The lint writes, under the title of every contract, a block with its level, then one line each for the contracts it implements, the contracts or files it enforces and what verifies it, all as links, and it writes `contracts/INDEX.md` with the map, the levels and a table file → leaf contract. Never edit these by hand.
 - **Coverage.** Every file of the contracted domain that is not excluded must be enforced by at least one leaf contract. A file enforced by no leaf is an **uncontracted zone**.
 - **Large contracts.** When a contract grows too large to read in one go (roughly: more than ~300 lines, more than ~15 enforced files, or several parts a reader would want to study separately), it is split: it keeps the overview and new contracts take the detail. The split is always proposed and confirmed, never automatic.
 - **Built in either direction.** Top-down, a parent is written first and names the contracts it will enforce. Bottom-up, leaves are written from existing code or documents, and parents are added above them later; until then the lint reports them as orphans.
@@ -110,11 +110,10 @@ A contract has **five sections in a fixed order** and a **fixed header** (`name`
 ### Writing rules
 
 - **Simple language.** Short sentences, everyday words. One idea per paragraph.
-- **Show, don't only tell.** Prefer a diagram or a table to a list, and a list to a paragraph. Use:
-  - `mermaid` diagrams for flows, sequences, states, dependencies, structure
-  - tables for options, fields, parameters, states, responsibilities, views of the same data from different sides
-  - trees (code blocks) for folder layouts
-  - short code snippets for interfaces and examples
+- **The View cites the clauses, each with its marker.** It names, as `` `contract#clause` `` (the form the lint checks), (1) every clause of a contract it `implements` that is enforced on it (the parent's `Enforced on` lists this contract), saying what this contract does to enforce it, marked 🟢 before the citation, and (2) every clause of its own, which the Clauses section then states exactly, marked 🟡. A clause never cited, or cited with the wrong marker, fails the lint. Example: *🟢 `security#no_password_logs` asks that no password reaches a log; this module passes every call through one function, as 🟡 `auth_session#log_filter` states.*
+- **Which clauses may be cited.** In its text (Purpose, View, Clauses, Notes) a contract cites only its own clauses and those of the contracts it directly `implements`. A reference to any other contract's clause (a child, a sibling, an unrelated contract) fails the lint and is removed: a dependency goes through the graph, so if the clause is needed, the contracts are linked with `edge add` first. The only exception is the `covered-by` row of **Verification**, which cites the clauses of the enforced contracts.
+- **Every use of a clause or a defined term is a link.** A clause cited as `` `contract#clause` `` links to the **Clauses** section of the contract that defines it, and every use of a term defined in **Notes** links to the **Notes** section. The links point at section headings, which every viewer follows (an anchor inside a table is dropped by some). You write clauses and terms plainly: the lint adds the links in the prose, the View, the Clauses text and the Notes meanings. Do not write these links by hand. A `quote` prints the clause text without the links.
+- **The View is text and diagrams only.** It tells how the part works in natural language, longer and more detailed than the Purpose, and shows it with `mermaid` diagrams (flows, sequences, states, dependencies, structure). **A diagram grows downwards, not sideways**: `flowchart TD` (or `TB`), never `LR` or `RL`, not even in a `subgraph`; at most 4 nodes side by side in a flowchart and 5 participants in a sequence diagram. A wider one is chained into steps or split into several diagrams, each introduced by a sentence that says what it shows. Anything that is neither explanatory text nor a diagram (a table of fields, parameters, options or states, a folder tree, an interface snippet) is not View content: it becomes a clause, or, if it only defines a term, a row of **Notes**.
 - **No grey zones.** Before writing the clauses, list every responsibility, entry point, input, output, error case, configuration and dependency of the parts at this level. Each one gets a clause, or is declared out of the contract with the reason. Detail too fine for this level goes into a child contract.
 - **Few entries, each useful.** A table row or a note that nobody could act on or verify is removed.
 - **No undefined terms.** A term whose meaning the text does not explain goes into **Notes**.
@@ -133,12 +132,17 @@ enforces:                         # child contracts (intermediate, root) or file
 # Session handling
 
 ## Purpose
-<what this part is for and why it exists, in 2-4 lines>
+<the short, non-technical summary: what this part is for and why it exists, in 2-4 lines>
 
 ## View
-<at least one diagram, table or tree that shows how the part works: flows, states,
-data, structure, interface. Extra sections (decisions, examples, interface...) may
-follow here as ### headings.>
+<a description in natural language of how the part works, more detailed than the
+Purpose, that cites the parent clauses it enforces (🟢 `parent#clause`) and its own (🟡 `this#clause`), and at least one `mermaid` diagram that shows it. Nothing else: no tables,
+trees or snippets (those become clauses). Extra sections (decisions, examples...)
+may follow here as ### headings, with the same rule.>
+
+The session lives in a store. On every request the API loads the session by the cookie
+the client sends, answers 200 if it is there and still valid, and 401 if it is missing
+or has expired. A session that nobody uses for 30 minutes expires.
 
 ```mermaid
 sequenceDiagram
@@ -147,11 +151,6 @@ sequenceDiagram
     Store-->>API: session or none
     API-->>Client: 200, or 401 if missing/expired
 ```
-
-| State | Meaning | Next |
-|---|---|---|
-| active | used in the last 30 min | active, expired |
-| expired | idle for 30 min | none |
 
 ## Clauses
 
@@ -182,6 +181,13 @@ Only **Notes** is optional; write it when the text leaves a term unexplained.
 
 - A clause states **one** checkable fact about the enforced files, precise enough that nobody can claim the contract allows what it does not say. High in the tree clauses are coarse ("client and server talk only over HTTP"); at the leaves they are exact.
 - Names follow the rules in **Names**. A removed clause leaves nothing behind.
+- **Enforced on.** A contract that enforces **contracts** has a third column in its Clauses table, `Enforced on`: for every clause, the contracts below it (directly or through other contracts) that the clause binds, comma separated. It is never empty and never names a contract the clause's contract does not enforce, and every contract cited by the clause's `covered-by` is in it. A leaf has no such column: its clauses are enforced on its own files. Write it with `clause add --on` or `clause enforced-on`; `quote` prints it under the clause text.
+
+  ```markdown
+  | Name | Clause | Enforced on |
+  |---|---|---|
+  | `no_password_logs` | Passwords never appear in logs. | auth_session, auth_login |
+  ```
 - A contract that `implements` another must not contradict its clauses. Every clause of a contract that enforces contracts is covered by clauses of those contracts (see `covered-by`).
 
 ### Verification
@@ -229,8 +235,12 @@ A clause with no verification row, or whose file is missing, is a discrepancy.
 | Header | `name` missing or over 3 words; `implements` or `enforces` missing; `implements` empty without `root: yes`, or `root: yes` with parents; `enforces` empty, mixing files and contracts, or naming a path or contract that does not exist |
 | Graph | an edge written on one side only; a cycle; a contract in a subfolder; a file name that breaks the rules in **Names** |
 | Sections | the five sections are not present in this order (Notes may be absent), or one still holds `_to be written_` |
-| View | it has no diagram, table or tree |
+| View | it holds anything but explanatory text and `mermaid` diagrams (a table, a tree, a snippet); it has no `mermaid` diagram; a diagram is horizontal (`LR`/`RL`) or has more than 4 nodes side by side (more than 5 participants in a sequence); its text is not longer than the Purpose's |
 | Names | a clause or ticket name breaks the rules in **Names**, or is not unique |
+| Links | a link to a heading that does not exist (for instance to Notes after the last term was removed); the lint itself adds the missing links |
+| Citations | a contract cites in its text a clause of a contract that is neither itself nor one it directly implements (the `covered-by` rows are exempt) |
+| View citations | the View does not cite, in backticks and outside a diagram, one of its own clauses (marked 🟡) or a clause of a parent that is enforced on it (marked 🟢), or marks one with the other colour |
+| Enforced on | a contract that enforces contracts has no `Enforced on` column or a clause with no contract in it; it names a contract that does not exist or that is not below it; a `covered-by` contract is missing from it; a leaf lists any |
 | Verification | a clause has no row or more than one, a row has no clause, the type is not in the list, the file does not exist, `covered-by` is used on a leaf or names a clause that is not in an enforced contract |
 | Stale files | a file in `<tests folder>/<contract id>/` that no Verification row cites |
 | References | a markdown link to a file or heading that does not exist; a path in backticks that does not exist; a `<contract id>#<clause>` that does not exist; a `file:line` whose line is past the end of the file. Code blocks are not checked. |
@@ -256,7 +266,8 @@ One script, `contract-tools.py` in the tests folder, run from the project root. 
 | `edge add\|remove <parent> <child>` | Writes `enforces` on the parent and `implements` on the child |
 | `files add\|remove <contract> <path>...` | Edits the `enforces` of a leaf |
 | `root set\|unset <contract>` | Marks or unmarks a root |
-| `clause add <contract> <name> --text T --type TYPE [--proves P] [--file F] [--covers c#k] [--ticket NAME]` | Adds the Clauses row and the Verification row, creates a **stub that fails** for a script or `ai-check` file, and with `--ticket` opens the ticket on the new clause |
+| `clause add <contract> <name> --text T --type TYPE [--on a,b] [--proves P] [--file F] [--covers c#k] [--ticket NAME]` | Adds the Clauses row (with `--on`, required on a contract that enforces contracts, forbidden on a leaf) and the Verification row, creates a **stub that fails** for a script or `ai-check` file, and with `--ticket` opens the ticket on the new clause |
+| `clause enforced-on <contract> <name> --on a,b` | Sets the contracts a clause is enforced on; also adds the `Enforced on` column to a table that lacks it (the other clauses get `-` until set, and the lint lists them) |
 | `clause rename <contract> <old> <new>` | Renames the rows, the verification file and every `<contract>#<old>` |
 | `clause remove <contract> <name>` | Removes the rows and the file, and makes an open ticket on it `obsolete` |
 | `ticket new\|log\|status\|direction\|reopen\|list\|sweep` | The only way to write tickets (see **Ticket format**) |
@@ -267,7 +278,7 @@ One script, `contract-tools.py` in the tests folder, run from the project root. 
 | `check-quotes [file...]` | Checks every quote block in contracts, tickets, handoffs and this README against the contracts. The lint runs it on all of them |
 | `flow start <name>\|step <n> <title> [--of N]\|set [--name N] [--contract c#k] [--ticket T]\|stop` | Keeps the position of the flow in `flow.json` |
 | `header --file <path[:lines]> --why <note> ...` | Prints the position header from `flow.json` and the contracts; exit 3 and no header if a file is an uncontracted zone |
-| `reply --contract <name>... --text <description> --option <proposal>...` | Prints the one fixed format of a reply: the contracts involved after 📄, a line, the description, a line, the numbered proposals. Works without a workspace too (names are then plain text) |
+| `reply --contract <name>... --file <path>... --text <description> --option <proposal>...` | Prints the one fixed format of a reply: the contracts and files involved after 📄, a line, the description, a line, the numbered proposals. Every contract name and every existing file path, also inside the description and the proposals, becomes a link that opens it. Works without a workspace too (nothing is then linked) |
 | `summary` | Tickets by status and direction, scope, lint result, and whether anything is open |
 | `handoff --stopped-at S [--why W --decisions D --next N --skills K]` | Writes the handoff file with the fixed sections, scope and tickets filled in |
 
@@ -282,7 +293,7 @@ quote — auth_session#session_expires (contracts/auth_session.md:42)
 
 The text under `>` must be the clause's exact text; it may end with `…` only if what is kept is identical. The lint (`check-quotes`) fails a quote in a contract, ticket, handoff or this README whose reference does not exist or whose text differs, naming the file and line of the quote. A paraphrase is not a quote and is not written in this form. The line number is where the clause was when the quote was printed: it is not checked, because editing a contract moves lines.
 
-Every reply of the agent about the system is printed by `contract-tools reply`, and has this format and no other rule of form: the names of the contracts involved after 📄, each a link that opens its `.md` file, a line, a short description in plain language, a line, then numbered proposals for what to do next.
+Every reply of the agent about the system is printed by `contract-tools reply`, and has this format and no other rule of form: the contracts and files involved after 📄, each a link that opens it (and every contract or file named in the description or the proposals is a link too), a line, a short description in plain language, a line, then numbered proposals for what to do next.
 
 ```
 📄 [auth_session](contracts/auth_session.md), [security](contracts/security.md)

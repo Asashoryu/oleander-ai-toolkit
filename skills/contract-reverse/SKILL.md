@@ -1,6 +1,6 @@
 ---
 name: contract-reverse
-description: Write one detailed contract from sources you list (code files, existing documents, other contracts). Reads every source, then produces a readable, complete contract in the fixed template, shown with diagrams and tables, with a verification for every clause. Repeat it for each part of a repository, then group the results with recontract. Use to contract existing code, an uncontracted zone, or documentation that should become a contract.
+description: Write one detailed contract from sources you list (code files, existing documents, other contracts). Reads every source, then produces a readable, complete contract in the fixed template, told in plain language and shown with diagrams, with a verification for every clause. Repeat it for each part of a repository, then group the results with recontract. Use to contract existing code, an uncontracted zone, or documentation that should become a contract.
 ---
 
 # Contract reverse
@@ -47,7 +47,8 @@ Following the contract format (fixed header with `implements` and `enforces`, th
 - Create the skeleton with `contract-tools contract new <id> --name <name> --implements <parents> --enforces <files>`; it writes both sides of every edge. Write the prose; add each clause with `clause add` (no `--ticket`: the code already exists).
 - First list, from step 1, every responsibility, entry point, input, output, error case and configuration at this contract's level. This list is the grey-zone check: each item gets a clause, or is declared out of the contract with the reason.
 - **Purpose**: 2-4 lines.
-- **View**: document everything collected at this level, shown rather than told: `mermaid` diagrams for flows, sequences, states and dependencies; tables for fields, parameters, options and interface; trees for layouts. Simple words. Few entries, each useful.
+- **Purpose**: the short, non-technical summary, 2-4 lines.
+- **View**: a natural-language description of how the part works, longer and more detailed than the Purpose, with `mermaid` diagrams for flows, sequences, states and dependencies, always growing downwards (`TD`, at most 4 nodes side by side): a wider one is chained or split into several diagrams. It cites every clause of its own as 🟡 `` `contract#clause` `` and every clause of its parents enforced on it as 🟢 `` `contract#clause` ``, saying what the contract does for each (add the clauses first, then write the View). Only text and diagrams: every field, parameter, option, state, layout or interface you collected that is not text or a diagram becomes a clause. Simple words.
 - **Clauses**: one named clause (at most 3 words, in the language of the project) for every rule the sources actually enforce and every guarantee a caller relies on.
 - **Verification**: one row per clause, with its type, what it proves and its file.
 - **Notes**: only if a term, function or name is used and not explained.
